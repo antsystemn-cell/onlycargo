@@ -18,6 +18,15 @@ export interface Cargo {
   updated_at: string;
 }
 
+// Public cargo data from cargo_public view (limited fields for non-authenticated users)
+export interface CargoPublic {
+  id: string | null;
+  track_number: string | null;
+  status: CargoStatus | null;
+  status_date: string | null;
+  created_at: string | null;
+}
+
 export interface Profile {
   id: string;
   phone: string;
