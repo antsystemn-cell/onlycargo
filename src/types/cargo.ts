@@ -1,4 +1,12 @@
-export type CargoStatus = 'registered' | 'in_transit' | 'arrived_ub' | 'completed';
+export type CargoStatus = 
+  | 'registered' 
+  | 'received_ereen' 
+  | 'transporting' 
+  | 'warehouse_processing' 
+  | 'ready_warehouse' 
+  | 'completed';
+
+export type AppRole = 'admin' | 'user' | 'china_warehouse' | 'branch_admin';
 
 export interface Cargo {
   id: string;
@@ -14,6 +22,11 @@ export interface Cargo {
   price: number | null;
   shelf_location: string | null;
   notes: string | null;
+  branch_id: string | null;
+  cubic_meter_price: number | null;
+  kg_price: number | null;
+  total_cubic_meters: number | null;
+  registered_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,6 +44,18 @@ export interface Profile {
   id: string;
   phone: string;
   full_name: string | null;
+  default_branch_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Branch {
+  id: string;
+  name: string;
+  code: string;
+  address: string | null;
+  phone: string | null;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -58,16 +83,63 @@ export interface Notification {
   created_at: string;
 }
 
+export interface CargoPreregistration {
+  id: string;
+  user_id: string;
+  track_number: string;
+  description: string | null;
+  matched_cargo_id: string | null;
+  created_at: string;
+}
+
+export interface CargoPhoto {
+  id: string;
+  cargo_id: string;
+  photo_url: string;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export interface CargoStatusHistory {
+  id: string;
+  cargo_id: string;
+  status: CargoStatus;
+  changed_by: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface SiteSetting {
+  id: string;
+  key: string;
+  value: unknown;
+  updated_at: string;
+  updated_by: string | null;
+}
+
 export const STATUS_LABELS: Record<CargoStatus, string> = {
   registered: 'Бүртгэгдсэн',
-  in_transit: 'Тээвэрлэгдэж байна',
-  arrived_ub: 'УБ-д ирсэн',
+  received_ereen: 'Эрээнд хүлээн авсан',
+  transporting: 'Тээвэрлэгдэж байна',
+  warehouse_processing: 'Агуулахад боловсруулж байна',
+  ready_warehouse: 'Агуулахад бэлэн',
   completed: 'Хүлээлгэж өгсөн',
 };
 
 export const STATUS_COLORS: Record<CargoStatus, string> = {
-  registered: 'bg-blue-100 text-blue-800',
-  in_transit: 'bg-yellow-100 text-yellow-800',
-  arrived_ub: 'bg-green-100 text-green-800',
-  completed: 'bg-gray-100 text-gray-800',
+  registered: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  received_ereen: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  transporting: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+  warehouse_processing: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+  ready_warehouse: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  completed: 'bg-muted text-muted-foreground',
 };
+
+export const STATUS_ORDER: CargoStatus[] = [
+  'registered',
+  'received_ereen',
+  'transporting',
+  'warehouse_processing',
+  'ready_warehouse',
+  'completed',
+];

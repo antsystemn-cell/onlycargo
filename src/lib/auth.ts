@@ -2,7 +2,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Convert phone number to email format for Supabase auth
 export function phoneToEmail(phone: string): string {
-  // Remove any non-digit characters
   const cleanPhone = phone.replace(/\D/g, '');
   return `${cleanPhone}@cargo.local`;
 }
@@ -63,4 +62,36 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
     .maybeSingle();
   
   return !error && data !== null;
+}
+
+export async function isUserChinaWarehouse(userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('role', 'china_warehouse')
+    .maybeSingle();
+  
+  return !error && data !== null;
+}
+
+export async function isUserBranchAdmin(userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('role', 'branch_admin')
+    .maybeSingle();
+  
+  return !error && data !== null;
+}
+
+export async function getUserRoles(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId);
+  
+  if (error || !data) return [];
+  return data.map(r => r.role);
 }

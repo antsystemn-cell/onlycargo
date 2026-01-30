@@ -8,11 +8,13 @@ import { AuthProvider } from "@/hooks/useAuth";
 // Layouts
 import UserLayout from "@/components/layout/UserLayout";
 import AdminLayout from "@/components/layout/AdminLayout";
+import ChinaWarehouseLayout from "@/components/layout/ChinaWarehouseLayout";
 
 // User Pages
 import Home from "@/pages/Home";
 import MyCargo from "@/pages/MyCargo";
 import Calculator from "@/pages/Calculator";
+import ChinaAddress from "@/pages/ChinaAddress";
 import Profile from "@/pages/Profile";
 import Auth from "@/pages/Auth";
 import NotFound from "@/pages/NotFound";
@@ -24,6 +26,11 @@ import UnassignedCargo from "@/pages/admin/UnassignedCargo";
 import CargoHandover from "@/pages/admin/CargoHandover";
 import AllCargo from "@/pages/admin/AllCargo";
 import AllUsers from "@/pages/admin/AllUsers";
+import SiteSettings from "@/pages/admin/SiteSettings";
+import BranchManagement from "@/pages/admin/BranchManagement";
+
+// China Warehouse Pages
+import ChinaWarehouseRegister from "@/pages/china-warehouse/ChinaWarehouseRegister";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +50,7 @@ const App = () => (
               <Route path="/" element={<Home />} />
               <Route path="/my-cargo" element={<MyCargo />} />
               <Route path="/calculator" element={<Calculator />} />
+              <Route path="/china-address" element={<ChinaAddress />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
 
@@ -54,6 +62,13 @@ const App = () => (
               <Route path="handover" element={<CargoHandover />} />
               <Route path="cargo" element={<AllCargo />} />
               <Route path="users" element={<AllUsers />} />
+              <Route path="settings" element={<SiteSettings />} />
+              <Route path="branches" element={<BranchManagement />} />
+            </Route>
+
+            {/* China Warehouse Routes */}
+            <Route path="/china-warehouse" element={<ChinaWarehouseLayout />}>
+              <Route index element={<ChinaWarehouseRegister />} />
             </Route>
 
             {/* Catch-all */}
