@@ -8,12 +8,14 @@ import { supabase } from '@/integrations/supabase/client';
 import NotificationBanner from '@/components/home/NotificationBanner';
 import QuickSearch from '@/components/home/QuickSearch';
 import CargoCard from '@/components/cargo/CargoCard';
-import type { Cargo, CargoStatus } from '@/types/cargo';
+import CargoPublicCard from '@/components/cargo/CargoPublicCard';
+import type { Cargo, CargoPublic, CargoStatus } from '@/types/cargo';
 
 export default function Home() {
   const { user, profile, isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
   const [searchResults, setSearchResults] = useState<Cargo[]>([]);
+  const [publicSearchResults, setPublicSearchResults] = useState<CargoPublic[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [unassignedMessage, setUnassignedMessage] = useState<string | null>(null);
@@ -22,33 +24,55 @@ export default function Home() {
     setIsSearching(true);
     setHasSearched(true);
     setUnassignedMessage(null);
+    setSearchResults([]);
+    setPublicSearchResults([]);
 
     try {
-      // Search by track number or phone number
-      const { data, error } = await supabase
-        .from('cargo')
-        .select('*')
-        .or(`track_number.ilike.%${query}%,phone_number.ilike.%${query}%`)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      if (user) {
+        // Authenticated users: search the cargo table (RLS allows own cargo or admin access)
+        const { data, error } = await supabase
+          .from('cargo')
+          .select('*')
+          .or(`track_number.ilike.%${query}%,phone_number.ilike.%${query}%`)
+          .order('created_at', { ascending: false })
+          .limit(20);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Check for unassigned cargo (no phone number assigned)
-      const hasUnassigned = data?.some((c) => !c.phone_number || c.phone_number === '');
-      if (hasUnassigned) {
-        setUnassignedMessage(
-          'Таны бүтээгдэхүүн "Утасгүй бүтээгдэхүүн" хэсэгт бүртгэгдсэн байна. Баталгаажуулахын тулд админтай холбогдоно уу.'
-        );
+        // Check for unassigned cargo (no phone number assigned)
+        const hasUnassigned = data?.some((c) => !c.phone_number || c.phone_number === '');
+        if (hasUnassigned) {
+          setUnassignedMessage(
+            'Таны бүтээгдэхүүн "Утасгүй бүтээгдэхүүн" хэсэгт бүртгэгдсэн байна. Баталгаажуулахын тулд админтай холбогдоно уу.'
+          );
+        }
+
+        // Transform data to ensure proper typing
+        const transformedData: Cargo[] = (data || []).map((item) => ({
+          ...item,
+          status: item.status as CargoStatus,
+        }));
+
+        setSearchResults(transformedData);
+      } else {
+        // Non-authenticated users: use the cargo_public view (limited fields, no sensitive data)
+        const { data, error } = await supabase
+          .from('cargo_public')
+          .select('*')
+          .ilike('track_number', `%${query}%`)
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (error) throw error;
+
+        // Transform data to ensure proper typing
+        const transformedData: CargoPublic[] = (data || []).map((item) => ({
+          ...item,
+          status: item.status as CargoStatus | null,
+        }));
+
+        setPublicSearchResults(transformedData);
       }
-
-      // Transform data to ensure proper typing
-      const transformedData: Cargo[] = (data || []).map((item) => ({
-        ...item,
-        status: item.status as CargoStatus,
-      }));
-
-      setSearchResults(transformedData);
     } catch (error) {
       console.error('Search error:', error);
     } finally {
@@ -117,24 +141,45 @@ export default function Home() {
             <section>
               <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <SearchIcon className="h-4 w-4" />
-                Хайлтын үр дүн ({searchResults.length})
+                Хайлтын үр дүн ({user ? searchResults.length : publicSearchResults.length})
               </h2>
-              {searchResults.length === 0 ? (
-                <Card>
-                  <CardContent className="p-6 text-center text-muted-foreground">
-                    Ачаа олдсонгүй
-                  </CardContent>
-                </Card>
+              {user ? (
+                // Authenticated users see full cargo details
+                searchResults.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-6 text-center text-muted-foreground">
+                      Ачаа олдсонгүй
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {searchResults.map((cargo) => (
+                      <CargoCard
+                        key={cargo.id}
+                        cargo={cargo}
+                        showPrice={true}
+                      />
+                    ))}
+                  </div>
+                )
               ) : (
-                <div className="space-y-3">
-                  {searchResults.map((cargo) => (
-                    <CargoCard
-                      key={cargo.id}
-                      cargo={cargo}
-                      showPrice={!!user}
-                    />
-                  ))}
-                </div>
+                // Non-authenticated users see limited cargo info
+                publicSearchResults.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-6 text-center text-muted-foreground">
+                      Ачаа олдсонгүй
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {publicSearchResults.map((cargo) => (
+                      <CargoPublicCard
+                        key={cargo.id || cargo.track_number}
+                        cargo={cargo}
+                      />
+                    ))}
+                  </div>
+                )
               )}
             </section>
           )}
