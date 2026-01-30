@@ -1,20 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Package, PackagePlus, Truck, CheckCircle } from 'lucide-react';
+import { Package, PackagePlus, Truck, Warehouse, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Stats {
   registered: number;
-  inTransit: number;
-  arrivedUb: number;
+  receivedEreen: number;
+  transporting: number;
+  readyWarehouse: number;
   todayRegistrations: number;
 }
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats>({
     registered: 0,
-    inTransit: 0,
-    arrivedUb: 0,
+    receivedEreen: 0,
+    transporting: 0,
+    readyWarehouse: 0,
     todayRegistrations: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -28,11 +30,11 @@ export default function AdminDashboard() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Fetch counts for each status
-      const [registered, inTransit, arrivedUb, todayCount] = await Promise.all([
+      const [registered, receivedEreen, transporting, readyWarehouse, todayCount] = await Promise.all([
         supabase.from('cargo').select('id', { count: 'exact', head: true }).eq('status', 'registered'),
-        supabase.from('cargo').select('id', { count: 'exact', head: true }).eq('status', 'in_transit'),
-        supabase.from('cargo').select('id', { count: 'exact', head: true }).eq('status', 'arrived_ub'),
+        supabase.from('cargo').select('id', { count: 'exact', head: true }).eq('status', 'received_ereen'),
+        supabase.from('cargo').select('id', { count: 'exact', head: true }).eq('status', 'transporting'),
+        supabase.from('cargo').select('id', { count: 'exact', head: true }).eq('status', 'ready_warehouse'),
         supabase
           .from('cargo')
           .select('id', { count: 'exact', head: true })
@@ -41,8 +43,9 @@ export default function AdminDashboard() {
 
       setStats({
         registered: registered.count || 0,
-        inTransit: inTransit.count || 0,
-        arrivedUb: arrivedUb.count || 0,
+        receivedEreen: receivedEreen.count || 0,
+        transporting: transporting.count || 0,
+        readyWarehouse: readyWarehouse.count || 0,
         todayRegistrations: todayCount.count || 0,
       });
     } catch (error) {
@@ -60,15 +63,21 @@ export default function AdminDashboard() {
       color: 'text-blue-600 bg-blue-100',
     },
     {
+      title: 'Эрээнд хүлээн авсан',
+      value: stats.receivedEreen,
+      icon: MapPin,
+      color: 'text-orange-600 bg-orange-100',
+    },
+    {
       title: 'Тээвэрлэгдэж байна',
-      value: stats.inTransit,
+      value: stats.transporting,
       icon: Truck,
       color: 'text-yellow-600 bg-yellow-100',
     },
     {
-      title: 'УБ-д ирсэн',
-      value: stats.arrivedUb,
-      icon: CheckCircle,
+      title: 'Агуулахад бэлэн',
+      value: stats.readyWarehouse,
+      icon: Warehouse,
       color: 'text-green-600 bg-green-100',
     },
     {
@@ -94,9 +103,9 @@ export default function AdminDashboard() {
         <p className="text-muted-foreground">Ачааны ерөнхий мэдээлэл</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         {statCards.map((card) => (
-          <Card key={card.title}>
+          <Card key={card.title} className="overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {card.title}

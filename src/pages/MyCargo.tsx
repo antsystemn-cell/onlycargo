@@ -1,19 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, CreditCard } from 'lucide-react';
+import { Package, Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import CargoCard from '@/components/cargo/CargoCard';
-import type { Cargo, CargoStatus } from '@/types/cargo';
+import CargoPreregistrationCard from '@/components/cargo/CargoPreregistrationCard';
+import { useToast } from '@/hooks/use-toast';
+import type { Cargo, CargoStatus, CargoPreregistration } from '@/types/cargo';
 
 export default function MyCargo() {
   const { user, profile, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [cargo, setCargo] = useState<Cargo[]>([]);
+  const [preregistrations, setPreregistrations] = useState<CargoPreregistration[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newTrackNumber, setNewTrackNumber] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -22,34 +33,97 @@ export default function MyCargo() {
     }
 
     if (user && profile) {
-      fetchCargo();
+      fetchData();
     }
   }, [user, profile, authLoading, navigate]);
 
-  const fetchCargo = async () => {
-    if (!profile?.phone) return;
+  const fetchData = async () => {
+    if (!profile?.phone || !user) return;
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('cargo')
-        .select('*')
-        .eq('phone_number', profile.phone)
-        .neq('status', 'completed')
-        .order('created_at', { ascending: false });
+      const [cargoRes, preregRes] = await Promise.all([
+        supabase
+          .from('cargo')
+          .select('*')
+          .eq('phone_number', profile.phone)
+          .neq('status', 'completed')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('cargo_preregistrations')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+      ]);
 
-      if (error) throw error;
+      if (cargoRes.error) throw cargoRes.error;
+      if (preregRes.error) throw preregRes.error;
 
-      const transformedData: Cargo[] = (data || []).map((item) => ({
+      const transformedCargo: Cargo[] = (cargoRes.data || []).map((item) => ({
         ...item,
         status: item.status as CargoStatus,
       }));
 
-      setCargo(transformedData);
+      setCargo(transformedCargo);
+      setPreregistrations(preregRes.data || []);
     } catch (error) {
-      console.error('Failed to fetch cargo:', error);
+      console.error('Failed to fetch data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePreregister = async () => {
+    if (!user || !newTrackNumber.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('cargo_preregistrations').insert({
+        user_id: user.id,
+        track_number: newTrackNumber.trim(),
+        description: newDescription.trim() || null,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Амжилттай',
+        description: 'Ачаа урьдчилан бүртгэгдлээ',
+      });
+
+      setDialogOpen(false);
+      setNewTrackNumber('');
+      setNewDescription('');
+      fetchData();
+    } catch (error) {
+      console.error('Preregistration error:', error);
+      toast({
+        title: 'Алдаа',
+        description: 'Бүртгэж чадсангүй',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeletePreregistration = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('cargo_preregistrations')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setPreregistrations((prev) => prev.filter((p) => p.id !== id));
+      toast({ title: 'Устгагдлаа' });
+    } catch (error) {
+      toast({
+        title: 'Алдаа',
+        description: 'Устгаж чадсангүй',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -79,63 +153,137 @@ export default function MyCargo() {
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-card px-4 py-3">
-        <div className="mx-auto flex max-w-md items-center gap-2">
-          <Package className="h-5 w-5 text-primary" />
-          <h1 className="text-lg font-semibold">Миний ачаа</h1>
+      <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-sm px-4 py-3">
+        <div className="mx-auto flex max-w-md items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-primary" />
+            <h1 className="text-lg font-semibold">Миний ачаа</h1>
+          </div>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="mr-1 h-4 w-4" />
+                Урьдчилан бүртгэх
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Ачаа урьдчилан бүртгэх</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Трак дугаар *</label>
+                  <Input
+                    value={newTrackNumber}
+                    onChange={(e) => setNewTrackNumber(e.target.value)}
+                    placeholder="SF1234567890"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Тайлбар</label>
+                  <Input
+                    value={newDescription}
+                    onChange={(e) => setNewDescription(e.target.value)}
+                    placeholder="Гутал, 2 ширхэг"
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={handlePreregister}
+                  disabled={!newTrackNumber.trim() || isSubmitting}
+                >
+                  {isSubmitting ? 'Бүртгэж байна...' : 'Бүртгэх'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </header>
 
       <main className="flex-1 px-4 py-6">
-        <div className="mx-auto max-w-md space-y-4">
-          {cargo.length === 0 ? (
-            <Card>
-              <CardContent className="p-6 text-center text-muted-foreground">
-                <Package className="mx-auto mb-4 h-12 w-12" />
-                <p>Одоогоор ачаа бүртгэгдээгүй байна.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              <div className="space-y-3">
-                {cargo.map((item) => (
-                  <CargoCard
-                    key={item.id}
-                    cargo={item}
-                    showPrice
-                    showCheckbox
-                    selected={selectedIds.has(item.id)}
-                    onSelect={handleSelect}
-                  />
-                ))}
-              </div>
+        <div className="mx-auto max-w-md">
+          <Tabs defaultValue="active" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="active">
+                Идэвхтэй ({cargo.length})
+              </TabsTrigger>
+              <TabsTrigger value="preregistered">
+                Урьдчилсан ({preregistrations.length})
+              </TabsTrigger>
+            </TabsList>
 
-              {/* Payment Section */}
-              {selectedIds.size > 0 && (
-                <Card className="sticky bottom-20 border-primary">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <CreditCard className="h-4 w-4" />
-                      Төлбөр
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">
-                        Сонгосон: {selectedIds.size} ширхэг
-                      </span>
-                      <span className="text-xl font-bold text-primary">
-                        {totalPrice.toLocaleString()}₮
-                      </span>
-                    </div>
-                    <Button className="w-full" disabled>
-                      QPay-ээр төлөх (Тун удахгүй)
-                    </Button>
+            <TabsContent value="active" className="space-y-4 animate-fade-in">
+              {cargo.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 text-center text-muted-foreground">
+                    <Package className="mx-auto mb-4 h-12 w-12 opacity-50" />
+                    <p>Одоогоор ачаа бүртгэгдээгүй байна.</p>
                   </CardContent>
                 </Card>
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    {cargo.map((item) => (
+                      <CargoCard
+                        key={item.id}
+                        cargo={item}
+                        showPrice
+                        showCheckbox
+                        selected={selectedIds.has(item.id)}
+                        onSelect={handleSelect}
+                      />
+                    ))}
+                  </div>
+
+                  {selectedIds.size > 0 && (
+                    <Card className="sticky bottom-24 border-primary shadow-lg animate-slide-up">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Сонгосон ачаа</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">
+                            {selectedIds.size} ширхэг
+                          </span>
+                          <span className="text-xl font-bold text-primary">
+                            {totalPrice.toLocaleString()}₮
+                          </span>
+                        </div>
+                        <Button className="w-full" disabled>
+                          QPay-ээр төлөх (Тун удахгүй)
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
               )}
-            </>
-          )}
+            </TabsContent>
+
+            <TabsContent value="preregistered" className="space-y-4 animate-fade-in">
+              {preregistrations.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 text-center text-muted-foreground">
+                    <Search className="mx-auto mb-4 h-12 w-12 opacity-50" />
+                    <p>Урьдчилан бүртгэсэн ачаа байхгүй.</p>
+                    <p className="text-sm mt-2">
+                      Захиалга өгөхдөө трак дугаараа урьдчилан бүртгэснээр
+                      <br />ачаа ирэхэд автоматаар холбогдоно.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {preregistrations.map((item) => (
+                    <CargoPreregistrationCard
+                      key={item.id}
+                      preregistration={item}
+                      onDelete={handleDeletePreregistration}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
     </div>

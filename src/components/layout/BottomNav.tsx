@@ -1,11 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Package, Calculator, User } from 'lucide-react';
+import { Home, Package, MapPin, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Нүүр' },
   { href: '/my-cargo', icon: Package, label: 'Миний ачаа' },
-  { href: '/calculator', icon: Calculator, label: 'Тооцоолуур' },
+  { href: '/china-address', icon: MapPin, label: 'Хаяг' },
   { href: '/profile', icon: User, label: 'Профайл' },
 ];
 
@@ -13,7 +13,7 @@ export default function BottomNav() {
   const location = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur-sm pb-safe">
       <div className="mx-auto flex max-w-md">
         {navItems.map((item) => {
           const isActive = location.pathname === item.href;
@@ -22,14 +22,19 @@ export default function BottomNav() {
               key={item.href}
               to={item.href}
               className={cn(
-                'flex flex-1 flex-col items-center gap-1 py-2 text-xs transition-colors',
+                'flex flex-1 flex-col items-center gap-1 py-3 text-xs transition-all duration-200',
                 isActive
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <item.icon className={cn('h-5 w-5', isActive && 'fill-primary/20')} />
-              <span>{item.label}</span>
+              <div className={cn(
+                'rounded-full p-1.5 transition-colors',
+                isActive && 'bg-primary/10'
+              )}>
+                <item.icon className={cn('h-5 w-5', isActive && 'stroke-[2.5px]')} />
+              </div>
+              <span className={cn('font-medium', isActive && 'font-semibold')}>{item.label}</span>
             </Link>
           );
         })}

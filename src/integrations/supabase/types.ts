@@ -14,18 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      branches: {
+        Row: {
+          address: string | null
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cargo: {
         Row: {
+          branch_id: string | null
           created_at: string
+          cubic_meter_price: number | null
           height: number | null
           id: string
+          kg_price: number | null
           length: number | null
           notes: string | null
           phone_number: string
           price: number | null
+          registered_by: string | null
           shelf_location: string | null
           status: Database["public"]["Enums"]["cargo_status"]
           status_date: string
+          total_cubic_meters: number | null
           track_number: string
           updated_at: string
           user_id: string | null
@@ -33,16 +71,21 @@ export type Database = {
           width: number | null
         }
         Insert: {
+          branch_id?: string | null
           created_at?: string
+          cubic_meter_price?: number | null
           height?: number | null
           id?: string
+          kg_price?: number | null
           length?: number | null
           notes?: string | null
           phone_number: string
           price?: number | null
+          registered_by?: string | null
           shelf_location?: string | null
           status?: Database["public"]["Enums"]["cargo_status"]
           status_date?: string
+          total_cubic_meters?: number | null
           track_number: string
           updated_at?: string
           user_id?: string | null
@@ -50,23 +93,159 @@ export type Database = {
           width?: number | null
         }
         Update: {
+          branch_id?: string | null
           created_at?: string
+          cubic_meter_price?: number | null
           height?: number | null
           id?: string
+          kg_price?: number | null
           length?: number | null
           notes?: string | null
           phone_number?: string
           price?: number | null
+          registered_by?: string | null
           shelf_location?: string | null
           status?: Database["public"]["Enums"]["cargo_status"]
           status_date?: string
+          total_cubic_meters?: number | null
           track_number?: string
           updated_at?: string
           user_id?: string | null
           weight?: number | null
           width?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cargo_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cargo_photos: {
+        Row: {
+          cargo_id: string
+          created_at: string
+          id: string
+          photo_url: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          cargo_id: string
+          created_at?: string
+          id?: string
+          photo_url: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          cargo_id?: string
+          created_at?: string
+          id?: string
+          photo_url?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cargo_photos_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargo_photos_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cargo_preregistrations: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          matched_cargo_id: string | null
+          track_number: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          matched_cargo_id?: string | null
+          track_number: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          matched_cargo_id?: string | null
+          track_number?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cargo_preregistrations_matched_cargo_id_fkey"
+            columns: ["matched_cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargo_preregistrations_matched_cargo_id_fkey"
+            columns: ["matched_cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cargo_status_history: {
+        Row: {
+          cargo_id: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["cargo_status"]
+        }
+        Insert: {
+          cargo_id: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status: Database["public"]["Enums"]["cargo_status"]
+        }
+        Update: {
+          cargo_id?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["cargo_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cargo_status_history_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargo_status_history_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       delivery_addresses: {
         Row: {
@@ -140,6 +319,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          default_branch_id: string | null
           full_name: string | null
           id: string
           phone: string
@@ -147,6 +327,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          default_branch_id?: string | null
           full_name?: string | null
           id: string
           phone: string
@@ -154,10 +335,43 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          default_branch_id?: string | null
           full_name?: string | null
           id?: string
           phone?: string
           updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_default_branch_id_fkey"
+            columns: ["default_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
         }
         Relationships: []
       }
@@ -221,8 +435,14 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "user"
-      cargo_status: "registered" | "in_transit" | "arrived_ub" | "completed"
+      app_role: "admin" | "user" | "china_warehouse" | "branch_admin"
+      cargo_status:
+        | "registered"
+        | "received_ereen"
+        | "transporting"
+        | "warehouse_processing"
+        | "ready_warehouse"
+        | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -350,8 +570,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
-      cargo_status: ["registered", "in_transit", "arrived_ub", "completed"],
+      app_role: ["admin", "user", "china_warehouse", "branch_admin"],
+      cargo_status: [
+        "registered",
+        "received_ereen",
+        "transporting",
+        "warehouse_processing",
+        "ready_warehouse",
+        "completed",
+      ],
     },
   },
 } as const
