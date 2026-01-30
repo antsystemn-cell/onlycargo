@@ -7,6 +7,9 @@ interface Profile {
   id: string;
   phone: string;
   full_name: string | null;
+  default_branch_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface AuthContextType {

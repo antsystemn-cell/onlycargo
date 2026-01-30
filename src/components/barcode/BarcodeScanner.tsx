@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Camera, X, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import BarcodeScannerComponent from 'react-qr-barcode-scanner';
 
 interface BarcodeScannerProps {
   onScan: (code: string) => void;
@@ -20,8 +21,7 @@ export default function BarcodeScanner({
   const [isScanning, setIsScanning] = useState(false);
   const [inputValue, setInputValue] = useState(value || '');
   const [error, setError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const [stopStream, setStopStream] = useState(false);
 
   useEffect(() => {
     if (value !== undefined) {
@@ -35,51 +35,41 @@ export default function BarcodeScanner({
     onChange?.(newValue);
   };
 
-  const startScanning = async () => {
+  const startScanning = () => {
     setError(null);
+    setStopStream(false);
     setIsScanning(true);
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-    } catch (err) {
-      console.error('Camera access error:', err);
-      setError('Камер ашиглах боломжгүй. Гараар оруулна уу.');
-      setIsScanning(false);
-    }
   };
 
-  const stopScanning = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
+  const stopScanning = useCallback(() => {
+    setStopStream(true);
+    setTimeout(() => {
+      setIsScanning(false);
+    }, 0);
+  }, []);
+
+  const handleScanResult = useCallback((err: unknown, result: { getText: () => string } | undefined) => {
+    if (result) {
+      const scannedText = result.getText();
+      if (scannedText) {
+        setInputValue(scannedText);
+        onChange?.(scannedText);
+        onScan(scannedText);
+        stopScanning();
+      }
+    }
+  }, [onScan, onChange, stopScanning]);
+
+  const handleCameraError = useCallback((err: string | DOMException) => {
+    console.error('Camera error:', err);
+    const errorName = typeof err === 'string' ? err : err.name;
+    if (errorName === 'NotAllowedError') {
+      setError('Камерын зөвшөөрөл олгоно уу.');
+    } else {
+      setError('Камер ашиглах боломжгүй. Гараар оруулна уу.');
     }
     setIsScanning(false);
-  };
-
-  // Simple barcode detection using canvas (basic implementation)
-  // For production, consider using a dedicated library like @AcidOppDe/react-zxing
-  const captureFrame = async () => {
-    if (!videoRef.current) return;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    const ctx = canvas.getContext('2d');
-    
-    if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0);
-      // For now, just show manual input option since barcode detection needs a library
-      setError('Баркод уншигч одоогоор боловсруулагдаж байна. Гараар оруулна уу.');
-    }
-  };
+  }, []);
 
   const handleManualSubmit = () => {
     if (inputValue.trim()) {
@@ -113,24 +103,37 @@ export default function BarcodeScanner({
       )}
 
       <Dialog open={isScanning} onOpenChange={(open) => !open && stopScanning()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-4 pb-0">
             <DialogTitle className="flex items-center gap-2">
               <Camera className="h-5 w-5" />
               Баркод скан хийх
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4">
-            <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                playsInline
-                muted
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-3/4 h-1/3 border-2 border-primary rounded-lg" />
+          <div className="space-y-4 p-4">
+            <div className="relative aspect-[4/3] bg-muted rounded-lg overflow-hidden">
+              {isScanning && !stopStream && (
+                <BarcodeScannerComponent
+                  width="100%"
+                  height="100%"
+                  onUpdate={handleScanResult}
+                  onError={handleCameraError}
+                  stopStream={stopStream}
+                  facingMode="environment"
+                  delay={300}
+                />
+              )}
+              {/* Scanning overlay */}
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-3/4 h-1/4 border-2 border-primary rounded-lg animate-pulse" />
+                </div>
+                <div className="absolute bottom-2 left-0 right-0 text-center">
+                  <span className="text-xs bg-background/80 px-2 py-1 rounded text-muted-foreground">
+                    Баркодыг хүрээнд байрлуулна уу
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -138,13 +141,6 @@ export default function BarcodeScanner({
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={captureFrame}
-              >
-                <Camera className="mr-2 h-4 w-4" />
-                Зураг авах
-              </Button>
-              <Button
-                variant="outline"
                 onClick={stopScanning}
               >
                 <Keyboard className="mr-2 h-4 w-4" />
