@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { signOut } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import CargoCard from '@/components/cargo/CargoCard';
+import BranchSelector from '@/components/profile/BranchSelector';
 import type { DeliveryAddress, Cargo, CargoStatus } from '@/types/cargo';
 
 export default function Profile() {
@@ -251,6 +253,16 @@ export default function Profile() {
                   </div>
                 )}
               </div>
+
+              <Separator className="my-4" />
+
+              {/* Branch Selection */}
+              {profile && (
+                <BranchSelector 
+                  profile={profile} 
+                  onBranchChange={refreshProfile} 
+                />
+              )}
             </CardContent>
           </Card>
 
