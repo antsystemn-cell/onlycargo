@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// QPay API endpoints (production)
+// QPay API v2 endpoints (production)
 const QPAY_BASE_URL = "https://merchant.qpay.mn/v2";
 
 interface CreateInvoiceRequest {
@@ -25,23 +25,26 @@ interface QPayTokenResponse {
   session_state: string;
 }
 
+// QPay v2 invoice response - bank apps from urls array
+interface QPayBankApp {
+  name: string;
+  description: string;
+  logo: string;
+  link: string;
+}
+
 interface QPayInvoiceResponse {
   invoice_id: string;
   qr_text: string;
-  qr_image: string;
-  urls: Array<{
-    name: string;
-    description: string;
-    link: string;
-    logo?: string;
-  }>;
+  qr_image: string;  // Base64 PNG - NEVER generate locally
+  urls: QPayBankApp[];  // Bank apps list - NEVER hardcode
 }
 
 /**
  * Get QPay access token using Basic Auth
- * Documentation: https://developer.qpay.mn/#токен-авах-хүсэлт
+ * QPay API v2: POST /v2/auth/token with Basic Auth (client_id:client_secret)
  */
-async function getQPayToken(username: string, password: string): Promise<string> {
+async function getQPayToken(username: string, password: string): Promise<{ access_token: string; refresh_token: string }> {
   console.log("[QPay] Requesting access token...");
   
   // Create Basic auth header (Base64 encoded username:password)
@@ -68,12 +71,46 @@ async function getQPayToken(username: string, password: string): Promise<string>
     throw new Error("QPay returned empty access token");
   }
   
-  return data.access_token;
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  };
+}
+
+/**
+ * Refresh QPay access token
+ * QPay API v2: POST /v2/auth/refresh with Bearer refresh_token
+ */
+async function refreshQPayToken(refreshToken: string): Promise<{ access_token: string; refresh_token: string }> {
+  console.log("[QPay] Refreshing access token...");
+  
+  const response = await fetch(`${QPAY_BASE_URL}/auth/refresh`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${refreshToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[QPay] Token refresh failed:", response.status, errorText);
+    throw new Error(`QPay token refresh failed: ${response.status}`);
+  }
+
+  const data: QPayTokenResponse = await response.json();
+  console.log("[QPay] Token refreshed, expires in:", data.expires_in, "seconds");
+  
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  };
 }
 
 /**
  * Create QPay invoice
- * Documentation: https://developer.qpay.mn/#нэхэмжлэх-үүсгэх
+ * QPay API v2: POST /v2/invoice
+ * IMPORTANT: QR code comes from response - NEVER generate locally
  */
 async function createQPayInvoice(
   accessToken: string,
@@ -86,6 +123,7 @@ async function createQPayInvoice(
 ): Promise<QPayInvoiceResponse> {
   console.log("[QPay] Creating invoice:", { senderInvoiceNo, amount, description });
   
+  // QPay v2 invoice request body
   const requestBody = {
     invoice_code: invoiceCode,
     sender_invoice_no: senderInvoiceNo,
@@ -108,6 +146,12 @@ async function createQPayInvoice(
 
   const responseText = await response.text();
   
+  // Handle 401 - token expired
+  if (response.status === 401) {
+    console.log("[QPay] Token expired (401), needs refresh");
+    throw new Error("TOKEN_EXPIRED");
+  }
+  
   if (!response.ok) {
     console.error("[QPay] Invoice creation failed:", response.status, responseText);
     throw new Error(`QPay invoice creation failed: ${response.status} - ${responseText}`);
@@ -122,6 +166,7 @@ async function createQPayInvoice(
   }
 
   console.log("[QPay] Invoice created:", data.invoice_id);
+  console.log("[QPay] Bank apps available:", data.urls?.length || 0);
   
   if (!data.invoice_id) {
     throw new Error("QPay returned empty invoice_id");
@@ -256,17 +301,19 @@ serve(async (req) => {
           payment_id: demoPayment.id,
           qr_image: demoPayment.qpay_qr_image,
           qr_text: demoPayment.qpay_qr_text,
-          urls: demoPayment.qpay_urls,
+          urls: demoPayment.qpay_urls,  // Array format
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
 
-    // Production mode - QPay integration
+    // Production mode - QPay v2 integration
     console.log("[QPay] Starting production invoice creation...");
 
-    // Step 1: Get QPay access token
-    const accessToken = await getQPayToken(qpayUsername, qpayPassword);
+    // Step 1: Get QPay access token (Basic Auth)
+    let tokens = await getQPayToken(qpayUsername, qpayPassword);
+    let accessToken = tokens.access_token;
+    let refreshToken = tokens.refresh_token;
 
     // Step 2: Create unique invoice number
     const senderInvoiceNo = `OC-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
@@ -274,28 +321,45 @@ serve(async (req) => {
     // Step 3: Create callback URL for webhook
     const callbackUrl = `${supabaseUrl}/functions/v1/qpay-callback?payment_ref=${senderInvoiceNo}`;
     
-    // Step 4: Create QPay invoice
+    // Step 4: Create QPay invoice (with retry on 401)
     const invoiceDescription = description || `OnlyCargo - ${cargo_ids.length} ачаа (${cargoItems.map(c => c.track_number).join(', ')})`;
     
-    const qpayInvoice = await createQPayInvoice(
-      accessToken,
-      qpayInvoiceCode,
-      senderInvoiceNo,
-      user.id.substring(0, 20), // invoice_receiver_code - unique customer ID
-      invoiceDescription.substring(0, 255), // max 255 chars
-      amount,
-      callbackUrl
-    );
-
-    // Step 5: Transform URLs to key-value format
-    const qpayUrls: Record<string, string> = {};
-    if (qpayInvoice.urls && Array.isArray(qpayInvoice.urls)) {
-      for (const url of qpayInvoice.urls) {
-        if (url.name && url.link) {
-          qpayUrls[url.name] = url.link;
-        }
+    let qpayInvoice: QPayInvoiceResponse;
+    try {
+      qpayInvoice = await createQPayInvoice(
+        accessToken,
+        qpayInvoiceCode,
+        senderInvoiceNo,
+        user.id.substring(0, 20),
+        invoiceDescription.substring(0, 255),
+        amount,
+        callbackUrl
+      );
+    } catch (error) {
+      // Handle 401 - retry with refreshed token
+      if (error instanceof Error && error.message === "TOKEN_EXPIRED") {
+        console.log("[QPay] Refreshing token and retrying...");
+        const refreshedTokens = await refreshQPayToken(refreshToken);
+        accessToken = refreshedTokens.access_token;
+        
+        qpayInvoice = await createQPayInvoice(
+          accessToken,
+          qpayInvoiceCode,
+          senderInvoiceNo,
+          user.id.substring(0, 20),
+          invoiceDescription.substring(0, 255),
+          amount,
+          callbackUrl
+        );
+      } else {
+        throw error;
       }
     }
+
+    // Step 5: Store bank apps as array (from QPay response.urls)
+    // IMPORTANT: NEVER hardcode bank list - always use QPay response
+    const qpayUrls = qpayInvoice.urls || [];
+    console.log("[QPay] Bank apps from response:", qpayUrls.map(u => u.name));
 
     // Step 6: Create payment record in database
     const { data: payment, error: paymentError } = await supabase
@@ -307,9 +371,9 @@ serve(async (req) => {
         status: "pending",
         qpay_invoice_id: qpayInvoice.invoice_id,
         qpay_qr_text: qpayInvoice.qr_text,
-        qpay_qr_image: qpayInvoice.qr_image,
-        qpay_urls: qpayUrls,
-        notes: senderInvoiceNo, // Store sender_invoice_no for reference
+        qpay_qr_image: qpayInvoice.qr_image,  // Base64 PNG from QPay - NEVER generate locally
+        qpay_urls: qpayUrls,  // Store as array from QPay response
+        notes: senderInvoiceNo,
         created_by: user.id,
       })
       .select()
@@ -334,7 +398,6 @@ serve(async (req) => {
 
     if (linkError) {
       console.error("[DB] Payment-cargo link error:", linkError);
-      // Don't throw - payment was created successfully
     }
 
     // Step 8: Update cargo with payment reference
@@ -352,15 +415,16 @@ serve(async (req) => {
       qpay_invoice_id: qpayInvoice.invoice_id,
       amount: amount,
       cargo_count: cargo_ids.length,
+      bank_apps: qpayUrls.length,
     });
 
     return new Response(
       JSON.stringify({
         success: true,
         payment_id: payment.id,
-        qr_image: qpayInvoice.qr_image,
-        qr_text: qpayInvoice.qr_text,
-        urls: qpayUrls,
+        qr_image: qpayInvoice.qr_image,  // From QPay response
+        qr_text: qpayInvoice.qr_text,    // From QPay response
+        urls: qpayUrls,                   // Bank apps array from QPay response
         invoice_id: qpayInvoice.invoice_id,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
@@ -392,11 +456,12 @@ async function createDemoPayment(
 ) {
   const demoQrImage = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmZmYiLz48cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0iIzMzMyIvPjxyZWN0IHg9IjE0MCIgeT0iMjAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0iIzMzMyIvPjxyZWN0IHg9IjIwIiB5PSIxNDAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTUlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjY2Ij5EZW1vIFFSPC90ZXh0Pjx0ZXh0IHg9IjUwJSIgeT0iNjUlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5Ij5RUGFZIGNyZWRlbnRpYWxzPC90ZXh0Pjx0ZXh0IHg9IjUwJSIgeT0iNzUlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5Ij5ub3QgY29uZmlndXJlZDwvdGV4dD48L3N2Zz4=";
 
-  const demoUrls = {
-    "Khan Bank (Demo)": "#demo",
-    "TDB (Demo)": "#demo",
-    "Golomt (Demo)": "#demo",
-  };
+  // Demo bank apps - array format to match QPay response structure
+  const demoUrls = [
+    { name: "Khan Bank", description: "Khan Bank Demo", logo: "", link: "#demo" },
+    { name: "TDB", description: "TDB Demo", logo: "", link: "#demo" },
+    { name: "Golomt", description: "Golomt Demo", logo: "", link: "#demo" },
+  ];
 
   const { data: payment, error } = await supabase
     .from("payments")

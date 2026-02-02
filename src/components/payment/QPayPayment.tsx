@@ -17,6 +17,14 @@ interface QPayPaymentProps {
   onClose?: () => void;
 }
 
+// QPay v2 bank app structure from response.urls
+interface QPayBankApp {
+  name: string;
+  description: string;
+  logo: string;
+  link: string;
+}
+
 type PaymentState = 'idle' | 'creating' | 'pending' | 'checking' | 'paid' | 'failed' | 'error';
 
 export default function QPayPayment({ 
@@ -29,6 +37,7 @@ export default function QPayPayment({
 }: QPayPaymentProps) {
   const { toast } = useToast();
   const [payment, setPayment] = useState<Payment | null>(null);
+  const [bankApps, setBankApps] = useState<QPayBankApp[]>([]);
   const [paymentState, setPaymentState] = useState<PaymentState>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -56,6 +65,11 @@ export default function QPayPayment({
           setPayment(paymentData as Payment);
           setPaymentState('pending');
           setIsDemoMode(paymentData.qpay_invoice_id?.startsWith('DEMO-') || false);
+          
+          // Parse bank apps from qpay_urls (stored as array)
+          if (paymentData.qpay_urls && Array.isArray(paymentData.qpay_urls)) {
+            setBankApps(paymentData.qpay_urls as unknown as QPayBankApp[]);
+          }
         } else if (paymentData && paymentData.status === 'paid') {
           setPayment(paymentData as Payment);
           setPaymentState('paid');
@@ -126,6 +140,11 @@ export default function QPayPayment({
       // Check if demo mode
       if (result.demo_mode) {
         setIsDemoMode(true);
+      }
+
+      // Store bank apps from QPay response (NEVER hardcode)
+      if (result.urls && Array.isArray(result.urls)) {
+        setBankApps(result.urls);
       }
 
       // Fetch the created payment
@@ -317,7 +336,7 @@ export default function QPayPayment({
 
           {isPending && (
             <>
-              {/* QR Code */}
+              {/* QR Code - from QPay response, NEVER generate locally */}
               {payment.qpay_qr_image && (
                 <div className="flex justify-center">
                   <div className="p-4 bg-white rounded-lg shadow-inner border">
@@ -330,21 +349,33 @@ export default function QPayPayment({
                 </div>
               )}
 
-              {/* Bank app links */}
-              {payment.qpay_urls && Object.keys(payment.qpay_urls).length > 0 && (
+              {/* Bank app links - dynamically from QPay response.urls, NEVER hardcoded */}
+              {bankApps.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-sm text-center text-muted-foreground">
                     Эсвэл банкны апп-аар нээх:
                   </p>
                   <div className="grid grid-cols-3 gap-2">
-                    {Object.entries(payment.qpay_urls).slice(0, 6).map(([name, url]) => (
+                    {bankApps.slice(0, 9).map((app, index) => (
                       <a
-                        key={name}
-                        href={url}
+                        key={`${app.name}-${index}`}
+                        href={app.link}
                         className="flex flex-col items-center gap-1 p-2 rounded-lg border hover:bg-muted transition-colors text-center"
                       >
-                        <Smartphone className="h-5 w-5" />
-                        <span className="text-xs truncate w-full">{name}</span>
+                        {app.logo ? (
+                          <img 
+                            src={app.logo} 
+                            alt={app.name} 
+                            className="h-6 w-6 object-contain"
+                            onError={(e) => {
+                              // Fallback to icon if logo fails to load
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <Smartphone className={`h-5 w-5 ${app.logo ? 'hidden' : ''}`} />
+                        <span className="text-xs truncate w-full">{app.name}</span>
                       </a>
                     ))}
                   </div>
@@ -404,6 +435,7 @@ export default function QPayPayment({
                 <Button 
                   onClick={() => {
                     setPayment(null);
+                    setBankApps([]);
                     setPaymentState('idle');
                   }} 
                   variant="outline" 
