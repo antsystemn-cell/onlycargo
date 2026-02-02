@@ -10,8 +10,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import BarcodeScanner from '@/components/barcode/BarcodeScanner';
-
+import { parseCargoError, logCargoOperation } from '@/lib/cargoErrors';
 const cargoSchema = z.object({
   track_number: z.string().min(1, 'Трак дугаар оруулна уу'),
   phone_number: z.string().regex(/^[6-9]\d{7}$/, 'Утасны дугаар буруу байна').optional().or(z.literal('')),
@@ -29,6 +30,7 @@ const shelfOptions = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'];
 
 export default function CargoRegister() {
   const { toast } = useToast();
+  const { user, isAdmin } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registeredCount, setRegisteredCount] = useState(0);
 
@@ -54,12 +56,45 @@ export default function CargoRegister() {
 
   const onSubmit = async (data: CargoFormValues) => {
     setIsSubmitting(true);
+    
+    const payload = {
+      track_number: data.track_number,
+      phone_number: data.phone_number || '',
+      weight: parseFloat(data.weight || '0') || null,
+      length: parseFloat(data.length || '0') || null,
+      width: parseFloat(data.width || '0') || null,
+      height: parseFloat(data.height || '0') || null,
+      shelf_location: data.shelf_location || null,
+      notes: data.notes || null,
+    };
+
     try {
       const weight = parseFloat(data.weight || '0');
       const length = parseFloat(data.length || '0');
       const width = parseFloat(data.width || '0');
       const height = parseFloat(data.height || '0');
       const price = calculatePrice(weight, length, width, height);
+
+      // Check if cargo already exists
+      const { data: existingCargo } = await supabase
+        .from('cargo')
+        .select('id, track_number')
+        .eq('track_number', data.track_number)
+        .maybeSingle();
+
+      if (existingCargo) {
+        logCargoOperation('register', payload, isAdmin ? 'admin' : 'user', { 
+          success: false, 
+          error: { code: '23505', message: 'Duplicate track number' } 
+        });
+        toast({
+          title: 'Давхардсан трак дугаар',
+          description: `"${data.track_number}" трак дугаар аль хэдийн бүртгэгдсэн байна`,
+          variant: 'destructive',
+        });
+        setIsSubmitting(false);
+        return;
+      }
 
       // Check if phone number exists and link to user
       let userId = null;
@@ -87,31 +122,46 @@ export default function CargoRegister() {
         shelf_location: data.shelf_location || null,
         notes: data.notes || null,
         status: 'registered',
+        registered_by: user?.id || null,
       });
 
       if (error) {
-        if (error.code === '23505') {
-          toast({
-            title: 'Алдаа',
-            description: 'Энэ трак дугаар бүртгэгдсэн байна',
-            variant: 'destructive',
-          });
-        } else {
-          throw error;
-        }
+        const parsedError = parseCargoError(error);
+        logCargoOperation('register', payload, isAdmin ? 'admin' : 'user', { success: false, error });
+        toast({
+          title: parsedError.title,
+          description: parsedError.description,
+          variant: 'destructive',
+        });
       } else {
+        logCargoOperation('register', payload, isAdmin ? 'admin' : 'user', { success: true });
+        
+        // Check for matching preregistration and show notification
+        const { data: matchedPrereg } = await supabase
+          .from('cargo_preregistrations')
+          .select('id, user_id')
+          .eq('track_number', data.track_number)
+          .not('matched_cargo_id', 'is', null)
+          .maybeSingle();
+
+        let successMessage = 'Ачаа амжилттай бүртгэгдлээ';
+        if (matchedPrereg) {
+          successMessage = 'Ачаа бүртгэгдэж, урьдчилсан бүртгэлтэй холбогдлоо';
+        }
+        
         toast({
           title: 'Амжилттай',
-          description: 'Ачаа бүртгэгдлээ',
+          description: successMessage,
         });
         setRegisteredCount((prev) => prev + 1);
         form.reset();
       }
     } catch (error) {
-      console.error('Registration error:', error);
+      const parsedError = parseCargoError(error);
+      logCargoOperation('register', payload, isAdmin ? 'admin' : 'user', { success: false, error });
       toast({
-        title: 'Алдаа',
-        description: 'Бүртгэж чадсангүй',
+        title: parsedError.title,
+        description: parsedError.description,
         variant: 'destructive',
       });
     } finally {

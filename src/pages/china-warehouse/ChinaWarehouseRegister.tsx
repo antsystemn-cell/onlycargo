@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PackagePlus, Check, Camera, X, Upload } from 'lucide-react';
+import { PackagePlus, Check, Camera, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import BarcodeScanner from '@/components/barcode/BarcodeScanner';
+import { parseCargoError, logCargoOperation } from '@/lib/cargoErrors';
 
 const cargoSchema = z.object({
   track_number: z.string().min(1, 'Трак дугаар оруулна уу'),
@@ -117,12 +118,43 @@ export default function ChinaWarehouseRegister() {
 
   const onSubmit = async (data: CargoFormValues) => {
     setIsSubmitting(true);
+    
+    const payload = {
+      track_number: data.track_number,
+      phone_number: data.phone_number || '',
+      weight: parseFloat(data.weight || '0') || null,
+      length: parseFloat(data.length || '0') || null,
+      width: parseFloat(data.width || '0') || null,
+      height: parseFloat(data.height || '0') || null,
+    };
+
     try {
       const weight = parseFloat(data.weight || '0');
       const length = parseFloat(data.length || '0');
       const width = parseFloat(data.width || '0');
       const height = parseFloat(data.height || '0');
       const priceCalc = calculatePrice(weight, length, width, height);
+
+      // Check if cargo already exists
+      const { data: existingCargo } = await supabase
+        .from('cargo')
+        .select('id, track_number')
+        .eq('track_number', data.track_number)
+        .maybeSingle();
+
+      if (existingCargo) {
+        logCargoOperation('register', payload, 'china_warehouse', { 
+          success: false, 
+          error: { code: '23505', message: 'Duplicate track number' } 
+        });
+        toast({
+          title: 'Давхардсан трак дугаар',
+          description: `"${data.track_number}" трак дугаар аль хэдийн бүртгэгдсэн байна`,
+          variant: 'destructive',
+        });
+        setIsSubmitting(false);
+        return;
+      }
 
       // Check if phone number exists and link to user
       let userId = null;
@@ -167,16 +199,16 @@ export default function ChinaWarehouseRegister() {
         .single();
 
       if (error) {
-        if (error.code === '23505') {
-          toast({
-            title: 'Алдаа',
-            description: 'Энэ трак дугаар бүртгэгдсэн байна',
-            variant: 'destructive',
-          });
-        } else {
-          throw error;
-        }
+        const parsedError = parseCargoError(error);
+        logCargoOperation('register', payload, 'china_warehouse', { success: false, error });
+        toast({
+          title: parsedError.title,
+          description: parsedError.description,
+          variant: 'destructive',
+        });
       } else {
+        logCargoOperation('register', payload, 'china_warehouse', { success: true });
+
         // Upload photos if any
         if (photos.length > 0 && newCargo) {
           const photoUrls = await uploadPhotos(newCargo.id);
@@ -190,26 +222,22 @@ export default function ChinaWarehouseRegister() {
           }
         }
 
-        // Check for matching preregistration
-        if (data.phone_number) {
-          const { data: preReg } = await supabase
-            .from('cargo_preregistrations')
-            .select('id')
-            .eq('track_number', data.track_number)
-            .is('matched_cargo_id', null)
-            .maybeSingle();
+        // Check for matching preregistration and show notification
+        const { data: matchedPrereg } = await supabase
+          .from('cargo_preregistrations')
+          .select('id, user_id')
+          .eq('track_number', data.track_number)
+          .not('matched_cargo_id', 'is', null)
+          .maybeSingle();
 
-          if (preReg) {
-            await supabase
-              .from('cargo_preregistrations')
-              .update({ matched_cargo_id: newCargo.id })
-              .eq('id', preReg.id);
-          }
+        let successMessage = `Ачаа бүртгэгдлээ - ${priceCalc.totalPrice.toLocaleString()}₮`;
+        if (matchedPrereg) {
+          successMessage = `Ачаа бүртгэгдэж, урьдчилсан бүртгэлтэй холбогдлоо - ${priceCalc.totalPrice.toLocaleString()}₮`;
         }
 
         toast({
           title: 'Амжилттай',
-          description: `Ачаа бүртгэгдлээ - ${priceCalc.totalPrice.toLocaleString()}₮`,
+          description: successMessage,
         });
         setRegisteredCount((prev) => prev + 1);
         form.reset();
@@ -217,10 +245,11 @@ export default function ChinaWarehouseRegister() {
         setCalculatedPrice(null);
       }
     } catch (error) {
-      console.error('Registration error:', error);
+      const parsedError = parseCargoError(error);
+      logCargoOperation('register', payload, 'china_warehouse', { success: false, error });
       toast({
-        title: 'Алдаа',
-        description: 'Бүртгэж чадсангүй',
+        title: parsedError.title,
+        description: parsedError.description,
         variant: 'destructive',
       });
     } finally {
