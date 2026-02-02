@@ -32,16 +32,22 @@ export default function CargoCard({
     return '-';
   };
 
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           {showCheckbox && (
-            <Checkbox
-              checked={selected}
-              onCheckedChange={(checked) => onSelect?.(cargo.id, checked as boolean)}
-              className="mt-1"
-            />
+            <div onClick={handleCheckboxClick}>
+              <Checkbox
+                checked={selected}
+                onCheckedChange={(checked) => onSelect?.(cargo.id, checked as boolean)}
+                className="mt-1"
+              />
+            </div>
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2 mb-2">
