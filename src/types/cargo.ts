@@ -8,6 +8,9 @@ export type CargoStatus =
 
 export type AppRole = 'admin' | 'user' | 'china_warehouse' | 'branch_admin';
 
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'refunded';
+export type PaymentMethod = 'qpay' | 'cash' | 'bank_transfer' | 'manual';
+
 export interface Cargo {
   id: string;
   track_number: string;
@@ -27,6 +30,7 @@ export interface Cargo {
   kg_price: number | null;
   total_cubic_meters: number | null;
   registered_by: string | null;
+  payment_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -83,6 +87,18 @@ export interface Notification {
   created_at: string;
 }
 
+export interface Banner {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  link_url: string | null;
+  sort_order: number;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CargoPreregistration {
   id: string;
   user_id: string;
@@ -106,6 +122,31 @@ export interface CargoStatusHistory {
   status: CargoStatus;
   changed_by: string | null;
   notes: string | null;
+  created_at: string;
+}
+
+export interface Payment {
+  id: string;
+  user_id: string;
+  branch_id: string | null;
+  amount: number;
+  payment_method: PaymentMethod;
+  status: PaymentStatus;
+  qpay_invoice_id: string | null;
+  qpay_qr_text: string | null;
+  qpay_qr_image: string | null;
+  qpay_urls: Record<string, string> | null;
+  paid_at: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentCargo {
+  id: string;
+  payment_id: string;
+  cargo_id: string;
   created_at: string;
 }
 
@@ -143,3 +184,19 @@ export const STATUS_ORDER: CargoStatus[] = [
   'ready_warehouse',
   'completed',
 ];
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  pending: 'Хүлээгдэж байна',
+  paid: 'Төлөгдсөн',
+  failed: 'Амжилтгүй',
+  cancelled: 'Цуцлагдсан',
+  refunded: 'Буцаагдсан',
+};
+
+export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
+  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+  paid: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  failed: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+  cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+  refunded: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+};

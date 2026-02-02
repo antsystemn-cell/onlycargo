@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Settings, Upload, Save, Image, FileText, MapPin, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,9 @@ export default function SiteSettings() {
   const [bannerEnabled, setBannerEnabled] = useState(homepageBanner.enabled);
   const [bannerTitle, setBannerTitle] = useState(homepageBanner.title);
   const [bannerDescription, setBannerDescription] = useState(homepageBanner.description);
+  const [bannerBackgroundImage, setBannerBackgroundImage] = useState(homepageBanner.backgroundImage || '');
+  const [uploadingBannerImage, setUploadingBannerImage] = useState(false);
+  const bannerImageInputRef = useRef<HTMLInputElement>(null);
 
   // China Address
   const [addressReceiver, setAddressReceiver] = useState(chinaWarehouseAddress.receiver);
@@ -38,6 +41,7 @@ export default function SiteSettings() {
     setBannerEnabled(homepageBanner.enabled);
     setBannerTitle(homepageBanner.title);
     setBannerDescription(homepageBanner.description);
+    setBannerBackgroundImage(homepageBanner.backgroundImage || '');
     setAddressReceiver(chinaWarehouseAddress.receiver);
     setAddressPhone(chinaWarehouseAddress.phone);
     setAddressRegion(chinaWarehouseAddress.region);
@@ -66,6 +70,35 @@ export default function SiteSettings() {
     return urlData.publicUrl;
   };
 
+  const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingBannerImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `banner-bg-${Date.now()}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('site-assets')
+        .upload(fileName, file, { upsert: true });
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from('site-assets')
+        .getPublicUrl(data.path);
+
+      setBannerBackgroundImage(urlData.publicUrl);
+      toast({ title: 'Зураг амжилттай хуулагдлаа' });
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({ title: 'Зураг хуулахад алдаа гарлаа', variant: 'destructive' });
+    } finally {
+      setUploadingBannerImage(false);
+    }
+  };
+
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
@@ -83,6 +116,7 @@ export default function SiteSettings() {
             enabled: bannerEnabled,
             title: bannerTitle,
             description: bannerDescription,
+            backgroundImage: bannerBackgroundImage,
           }),
         },
         {
@@ -173,13 +207,14 @@ export default function SiteSettings() {
           </CardContent>
         </Card>
 
-        {/* Banner Settings */}
+        {/* Banner Settings with Background Image */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <FileText className="h-4 w-4" />
-              Нүүр хуудасны баннер
+              Нүүр хуудасны мэдээллийн баннер
             </CardTitle>
+            <CardDescription>Гарчиг, тайлбар болон арын зураг</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
@@ -193,6 +228,48 @@ export default function SiteSettings() {
             <div className="space-y-2">
               <Label>Тайлбар</Label>
               <Textarea value={bannerDescription} onChange={(e) => setBannerDescription(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Арын зураг</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={bannerBackgroundImage}
+                  onChange={(e) => setBannerBackgroundImage(e.target.value)}
+                  placeholder="Зургийн URL эсвэл хуулах"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => bannerImageInputRef.current?.click()}
+                  disabled={uploadingBannerImage}
+                >
+                  {uploadingBannerImage ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                </Button>
+                <input
+                  ref={bannerImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleBannerImageUpload}
+                />
+              </div>
+              {bannerBackgroundImage && (
+                <div className="relative h-24 rounded-lg overflow-hidden border">
+                  <img
+                    src={bannerBackgroundImage}
+                    alt="Banner preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent flex items-end p-3">
+                    <span className="text-white text-sm font-medium truncate">{bannerTitle}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

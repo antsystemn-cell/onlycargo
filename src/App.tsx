@@ -28,6 +28,7 @@ import AllCargo from "@/pages/admin/AllCargo";
 import AllUsers from "@/pages/admin/AllUsers";
 import SiteSettings from "@/pages/admin/SiteSettings";
 import BranchManagement from "@/pages/admin/BranchManagement";
+import BannerManagement from "@/pages/admin/BannerManagement";
 
 // China Warehouse Pages
 import ChinaWarehouseRegister from "@/pages/china-warehouse/ChinaWarehouseRegister";
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="users" element={<AllUsers />} />
               <Route path="settings" element={<SiteSettings />} />
               <Route path="branches" element={<BranchManagement />} />
+              <Route path="banners" element={<BannerManagement />} />
             </Route>
 
             {/* China Warehouse Routes */}
