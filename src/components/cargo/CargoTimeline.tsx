@@ -17,7 +17,14 @@ export default function CargoTimeline({ statusHistory, photos, currentStatus, st
   // Build timeline from status history or fallback to current status
   const getTimelineItems = () => {
     if (statusHistory.length > 0) {
-      return statusHistory.map((item) => ({
+      // Sort by STATUS_ORDER to ensure correct logical progression
+      const sortedHistory = [...statusHistory].sort((a, b) => {
+        const indexA = STATUS_ORDER.indexOf(a.status);
+        const indexB = STATUS_ORDER.indexOf(b.status);
+        return indexA - indexB;
+      });
+      
+      return sortedHistory.map((item) => ({
         status: item.status,
         date: item.created_at,
         notes: item.notes,
@@ -37,9 +44,11 @@ export default function CargoTimeline({ statusHistory, photos, currentStatus, st
 
   const timelineItems = getTimelineItems();
 
-  // Get photos for a specific status/time
-  const getPhotosForStatus = (statusDate: string | null) => {
-    if (!statusDate) return [];
+  // Get photos for a specific status - ONLY for 'received_ereen' status
+  const getPhotosForStatus = (status: CargoStatus, statusDate: string | null) => {
+    // Only show photos for 'received_ereen' status
+    if (status !== 'received_ereen' || !statusDate) return [];
+    
     const statusTime = new Date(statusDate).getTime();
     return photos.filter((photo) => {
       const photoTime = new Date(photo.created_at).getTime();
@@ -48,16 +57,17 @@ export default function CargoTimeline({ statusHistory, photos, currentStatus, st
     });
   };
 
-  // Group remaining photos that don't match any status
-  const getUnmatchedPhotos = () => {
+  // Get photos that belong to 'received_ereen' but weren't matched by time
+  const getUnmatchedReceivedEreenPhotos = () => {
+    const receivedEreenItem = timelineItems.find(item => item.status === 'received_ereen');
+    if (!receivedEreenItem) return photos; // If no received_ereen status, show all photos separately
+    
     const matchedPhotoIds = new Set<string>();
-    timelineItems.forEach((item) => {
-      getPhotosForStatus(item.date).forEach((p) => matchedPhotoIds.add(p.id));
-    });
+    getPhotosForStatus('received_ereen', receivedEreenItem.date).forEach((p) => matchedPhotoIds.add(p.id));
     return photos.filter((p) => !matchedPhotoIds.has(p.id));
   };
 
-  const unmatchedPhotos = getUnmatchedPhotos();
+  const unmatchedPhotos = getUnmatchedReceivedEreenPhotos();
 
   return (
     <div className="relative">
@@ -89,7 +99,8 @@ export default function CargoTimeline({ statusHistory, photos, currentStatus, st
         ) : (
           timelineItems.map((item, idx) => {
             const isLast = idx === timelineItems.length - 1;
-            const statusPhotos = getPhotosForStatus(item.date);
+            // Only get photos for 'received_ereen' status
+            const statusPhotos = getPhotosForStatus(item.status, item.date);
 
             return (
               <div key={`${item.status}-${idx}`} className="relative flex gap-3">
