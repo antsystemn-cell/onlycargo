@@ -26,6 +26,7 @@ import UnassignedCargo from "@/pages/admin/UnassignedCargo";
 import CargoHandover from "@/pages/admin/CargoHandover";
 import AllCargo from "@/pages/admin/AllCargo";
 import AllUsers from "@/pages/admin/AllUsers";
+import RoleManagement from "@/pages/admin/RoleManagement";
 import SiteSettings from "@/pages/admin/SiteSettings";
 import BranchManagement from "@/pages/admin/BranchManagement";
 import BannerManagement from "@/pages/admin/BannerManagement";
@@ -63,6 +64,7 @@ const App = () => (
               <Route path="handover" element={<CargoHandover />} />
               <Route path="cargo" element={<AllCargo />} />
               <Route path="users" element={<AllUsers />} />
+              <Route path="roles" element={<RoleManagement />} />
               <Route path="settings" element={<SiteSettings />} />
               <Route path="branches" element={<BranchManagement />} />
               <Route path="banners" element={<BannerManagement />} />
