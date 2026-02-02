@@ -51,7 +51,7 @@ export function parseCargoError(error: unknown): CargoError {
       return {
         code: 'PERMISSION_DENIED',
         title: 'Эрх хүрэлцэхгүй',
-        description: 'Таны эрх энэ үйлдлийг хийхэд хүрэлцэхгүй байна',
+        description: 'Таны одоогийн эрх ачаа бүртгэх эсвэл засах боломжгүй байна. Админтай холбогдоно уу.',
       };
 
     case 'PGRST116': // No rows found
@@ -93,11 +93,11 @@ export function parseCargoError(error: unknown): CargoError {
       }
 
       // Check for RLS errors in message
-      if (err.message?.includes('row-level security') || err.message?.includes('RLS')) {
+      if (err.message?.includes('row-level security') || err.message?.includes('RLS') || err.message?.includes('new row violates')) {
         return {
           code: 'PERMISSION_DENIED',
           title: 'Эрх хүрэлцэхгүй',
-          description: 'Таны эрх энэ үйлдлийг хийхэд хүрэлцэхгүй байна',
+          description: 'Таны одоогийн эрх ачаа бүртгэх эсвэл засах боломжгүй байна. Админтай холбогдоно уу.',
         };
       }
 
