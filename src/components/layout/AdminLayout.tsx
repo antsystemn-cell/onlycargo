@@ -11,6 +11,7 @@ import {
   Settings,
   Building2,
   Menu,
+  Image,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ const adminNavItems = [
   { href: '/admin/cargo', icon: Package, label: 'Бүх ачаа' },
   { href: '/admin/users', icon: Users, label: 'Хэрэглэгчид' },
   { href: '/admin/branches', icon: Building2, label: 'Салбарууд' },
+  { href: '/admin/banners', icon: Image, label: 'Баннерүүд' },
   { href: '/admin/settings', icon: Settings, label: 'Тохиргоо' },
 ];
 

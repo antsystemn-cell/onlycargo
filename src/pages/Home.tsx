@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { supabase } from '@/integrations/supabase/client';
-import NotificationBanner from '@/components/home/NotificationBanner';
+import BannerCarousel from '@/components/home/BannerCarousel';
 import HomepageBanner from '@/components/home/HomepageBanner';
 import HomepageWidgets from '@/components/home/HomepageWidgets';
 import QuickSearch from '@/components/home/QuickSearch';
@@ -104,10 +104,11 @@ export default function Home() {
         </div>
       </header>
 
-      <NotificationBanner />
+      {/* Banner carousel replaces old notification banner */}
 
       <main className="flex-1 px-4 py-6">
         <div className="mx-auto max-w-md space-y-6">
+          <BannerCarousel />
           <HomepageBanner />
           <HomepageWidgets />
 

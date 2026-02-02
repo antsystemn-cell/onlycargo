@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      banners: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_enabled: boolean
+          link_url: string | null
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_enabled?: boolean
+          link_url?: string | null
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_enabled?: boolean
+          link_url?: string | null
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       branches: {
         Row: {
           address: string | null
@@ -57,6 +93,7 @@ export type Database = {
           kg_price: number | null
           length: number | null
           notes: string | null
+          payment_id: string | null
           phone_number: string
           price: number | null
           registered_by: string | null
@@ -79,6 +116,7 @@ export type Database = {
           kg_price?: number | null
           length?: number | null
           notes?: string | null
+          payment_id?: string | null
           phone_number: string
           price?: number | null
           registered_by?: string | null
@@ -101,6 +139,7 @@ export type Database = {
           kg_price?: number | null
           length?: number | null
           notes?: string | null
+          payment_id?: string | null
           phone_number?: string
           price?: number | null
           registered_by?: string | null
@@ -120,6 +159,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargo_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
             referencedColumns: ["id"]
           },
         ]
@@ -316,6 +362,111 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_cargo: {
+        Row: {
+          cargo_id: string
+          created_at: string
+          id: string
+          payment_id: string
+        }
+        Insert: {
+          cargo_id: string
+          created_at?: string
+          id?: string
+          payment_id: string
+        }
+        Update: {
+          cargo_id?: string
+          created_at?: string
+          id?: string
+          payment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_cargo_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_cargo_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_cargo_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          paid_at: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          qpay_invoice_id: string | null
+          qpay_qr_image: string | null
+          qpay_qr_text: string | null
+          qpay_urls: Json | null
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          qpay_invoice_id?: string | null
+          qpay_qr_image?: string | null
+          qpay_qr_text?: string | null
+          qpay_urls?: Json | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          qpay_invoice_id?: string | null
+          qpay_qr_image?: string | null
+          qpay_qr_text?: string | null
+          qpay_urls?: Json | null
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -443,6 +594,8 @@ export type Database = {
         | "warehouse_processing"
         | "ready_warehouse"
         | "completed"
+      payment_method: "qpay" | "cash" | "bank_transfer" | "manual"
+      payment_status: "pending" | "paid" | "failed" | "cancelled" | "refunded"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -579,6 +732,8 @@ export const Constants = {
         "ready_warehouse",
         "completed",
       ],
+      payment_method: ["qpay", "cash", "bank_transfer", "manual"],
+      payment_status: ["pending", "paid", "failed", "cancelled", "refunded"],
     },
   },
 } as const

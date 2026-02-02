@@ -14,6 +14,7 @@ interface HomepageBanner {
   title: string;
   description: string;
   imageUrl?: string;
+  backgroundImage?: string;
 }
 
 interface HomepageWidget {

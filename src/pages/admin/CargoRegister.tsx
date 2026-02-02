@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import BarcodeScanner from '@/components/barcode/BarcodeScanner';
 
 const cargoSchema = z.object({
   track_number: z.string().min(1, 'Трак дугаар оруулна уу'),
@@ -138,14 +139,19 @@ export default function CargoRegister() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
+                <FormField
                     control={form.control}
                     name="track_number"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Трак дугаар *</FormLabel>
                         <FormControl>
-                          <Input placeholder="SF1234567890" {...field} />
+                          <BarcodeScanner
+                            onScan={(code) => form.setValue('track_number', code)}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Баркод скан хийх эсвэл гараар оруулах"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
