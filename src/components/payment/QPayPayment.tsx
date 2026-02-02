@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import { QrCode, CreditCard, RefreshCw, CheckCircle, XCircle, Clock, Smartphone } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { QrCode, RefreshCw, CheckCircle, XCircle, Clock, Smartphone, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Payment, PaymentStatus } from '@/types/cargo';
@@ -16,6 +17,8 @@ interface QPayPaymentProps {
   onClose?: () => void;
 }
 
+type PaymentState = 'idle' | 'creating' | 'pending' | 'checking' | 'paid' | 'failed' | 'error';
+
 export default function QPayPayment({ 
   cargoIds, 
   totalAmount, 
@@ -26,15 +29,16 @@ export default function QPayPayment({
 }: QPayPaymentProps) {
   const { toast } = useToast();
   const [payment, setPayment] = useState<Payment | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
+  const [paymentState, setPaymentState] = useState<PaymentState>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const autoCheckRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check for existing pending payment on mount
   useEffect(() => {
     if (!userId || cargoIds.length === 0) return;
 
     const checkExistingPayment = async () => {
-      // Check if any cargo already has a pending payment
       const { data: existingPayments } = await supabase
         .from('payment_cargo')
         .select('payment_id, cargo_id')
@@ -46,10 +50,15 @@ export default function QPayPayment({
           .from('payments')
           .select('*')
           .eq('id', paymentId)
-          .single();
+          .maybeSingle();
 
         if (paymentData && paymentData.status === 'pending') {
           setPayment(paymentData as Payment);
+          setPaymentState('pending');
+          setIsDemoMode(paymentData.qpay_invoice_id?.startsWith('DEMO-') || false);
+        } else if (paymentData && paymentData.status === 'paid') {
+          setPayment(paymentData as Payment);
+          setPaymentState('paid');
         }
       }
     };
@@ -57,23 +66,44 @@ export default function QPayPayment({
     checkExistingPayment();
   }, [userId, cargoIds]);
 
-  const createInvoice = async () => {
+  // Auto-check payment status every 10 seconds when pending
+  useEffect(() => {
+    if (paymentState !== 'pending' || !payment) {
+      if (autoCheckRef.current) {
+        clearInterval(autoCheckRef.current);
+        autoCheckRef.current = null;
+      }
+      return;
+    }
+
+    autoCheckRef.current = setInterval(() => {
+      checkPaymentStatus(true);
+    }, 10000);
+
+    return () => {
+      if (autoCheckRef.current) {
+        clearInterval(autoCheckRef.current);
+      }
+    };
+  }, [paymentState, payment]);
+
+  const createInvoice = useCallback(async () => {
     if (cargoIds.length === 0 || totalAmount <= 0) {
       toast({ title: 'Төлөх ачаа сонгоно уу', variant: 'destructive' });
       return;
     }
 
-    setIsCreating(true);
+    setPaymentState('creating');
+    setErrorMessage(null);
+
     try {
       const session = await supabase.auth.getSession();
       const token = session.data.session?.access_token;
 
       if (!token) {
-        toast({ title: 'Нэвтэрнэ үү', variant: 'destructive' });
-        return;
+        throw new Error('Нэвтэрнэ үү');
       }
 
-      // Call edge function to create QPay invoice
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qpay-create-invoice`, {
         method: 'POST',
         headers: {
@@ -89,40 +119,56 @@ export default function QPayPayment({
 
       const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Invoice creation failed');
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Нэхэмжлэх үүсгэхэд алдаа гарлаа');
+      }
+
+      // Check if demo mode
+      if (result.demo_mode) {
+        setIsDemoMode(true);
       }
 
       // Fetch the created payment
-      const { data: newPayment } = await supabase
+      const { data: newPayment, error: fetchError } = await supabase
         .from('payments')
         .select('*')
         .eq('id', result.payment_id)
         .single();
 
-      if (newPayment) {
-        setPayment(newPayment as Payment);
-        toast({ title: 'Нэхэмжлэх үүсгэгдлээ' });
+      if (fetchError || !newPayment) {
+        throw new Error('Төлбөрийн мэдээлэл олдсонгүй');
       }
+
+      setPayment(newPayment as Payment);
+      setPaymentState('pending');
+      toast({ title: 'Нэхэмжлэх үүсгэгдлээ' });
+
     } catch (error) {
       console.error('Invoice creation error:', error);
+      setPaymentState('error');
+      setErrorMessage(error instanceof Error ? error.message : 'Алдаа гарлаа');
       toast({ 
         title: 'Нэхэмжлэх үүсгэхэд алдаа гарлаа', 
         description: error instanceof Error ? error.message : 'Дахин оролдоно уу',
         variant: 'destructive' 
       });
-    } finally {
-      setIsCreating(false);
     }
-  };
+  }, [cargoIds, totalAmount, toast]);
 
-  const checkPaymentStatus = async () => {
+  const checkPaymentStatus = useCallback(async (isAutoCheck = false) => {
     if (!payment) return;
 
-    setIsChecking(true);
+    if (!isAutoCheck) {
+      setPaymentState('checking');
+    }
+
     try {
       const session = await supabase.auth.getSession();
       const token = session.data.session?.access_token;
+
+      if (!token) {
+        throw new Error('Session expired');
+      }
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qpay-check-payment`, {
         method: 'POST',
@@ -138,10 +184,14 @@ export default function QPayPayment({
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Status check failed');
+        console.error('Status check error:', result.error);
+        if (!isAutoCheck) {
+          setPaymentState('pending');
+        }
+        return;
       }
 
-      // Refetch payment
+      // Refetch payment from database
       const { data: updatedPayment } = await supabase
         .from('payments')
         .select('*')
@@ -152,27 +202,24 @@ export default function QPayPayment({
         setPayment(updatedPayment as Payment);
         
         if (updatedPayment.status === 'paid') {
+          setPaymentState('paid');
           toast({ title: 'Төлбөр амжилттай!', description: 'Баярлалаа' });
           onSuccess?.();
         } else if (updatedPayment.status === 'failed') {
+          setPaymentState('failed');
           toast({ title: 'Төлбөр амжилтгүй', variant: 'destructive' });
+        } else {
+          setPaymentState('pending');
         }
       }
     } catch (error) {
       console.error('Status check error:', error);
-      toast({ title: 'Төлөв шалгахад алдаа гарлаа', variant: 'destructive' });
-    } finally {
-      setIsChecking(false);
+      if (!isAutoCheck) {
+        toast({ title: 'Төлөв шалгахад алдаа гарлаа', variant: 'destructive' });
+        setPaymentState('pending');
+      }
     }
-  };
-
-  // Auto-check payment status every 10 seconds
-  useEffect(() => {
-    if (!payment || payment.status !== 'pending') return;
-
-    const interval = setInterval(checkPaymentStatus, 10000);
-    return () => clearInterval(interval);
-  }, [payment]);
+  }, [payment, toast, onSuccess]);
 
   const getStatusIcon = (status: PaymentStatus) => {
     switch (status) {
@@ -198,8 +245,33 @@ export default function QPayPayment({
     return labels[status];
   };
 
+  const isCreating = paymentState === 'creating';
+  const isChecking = paymentState === 'checking';
+  const isPending = paymentState === 'pending';
+  const isPaid = paymentState === 'paid';
+  const isFailed = paymentState === 'failed';
+  const isError = paymentState === 'error';
+
   return (
     <div className="space-y-4">
+      {/* Demo mode warning */}
+      {isDemoMode && (
+        <Alert variant="default" className="border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-900/20">
+          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-700 dark:text-yellow-400">
+            Демо горим - QPay холболт тохируулаагүй байна
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Error message */}
+      {isError && errorMessage && (
+        <Alert variant="destructive">
+          <XCircle className="h-4 w-4" />
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Amount summary */}
       <Card>
         <CardContent className="p-4">
@@ -215,9 +287,16 @@ export default function QPayPayment({
 
       {!payment ? (
         // Create invoice button
-        <Button onClick={createInvoice} className="w-full" disabled={isCreating}>
+        <Button 
+          onClick={createInvoice} 
+          className="w-full" 
+          disabled={isCreating}
+        >
           {isCreating ? (
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Нэхэмжлэх үүсгэж байна...
+            </>
           ) : (
             <>
               <QrCode className="mr-2 h-4 w-4" />
@@ -236,16 +315,16 @@ export default function QPayPayment({
             </Badge>
           </div>
 
-          {payment.status === 'pending' && (
+          {isPending && (
             <>
               {/* QR Code */}
               {payment.qpay_qr_image && (
                 <div className="flex justify-center">
-                  <div className="p-4 bg-white rounded-lg shadow-inner">
+                  <div className="p-4 bg-white rounded-lg shadow-inner border">
                     <img 
                       src={payment.qpay_qr_image} 
                       alt="QPay QR" 
-                      className="w-48 h-48"
+                      className="w-48 h-48 object-contain"
                     />
                   </div>
                 </div>
@@ -274,13 +353,16 @@ export default function QPayPayment({
 
               {/* Check status button */}
               <Button 
-                onClick={checkPaymentStatus} 
+                onClick={() => checkPaymentStatus(false)} 
                 variant="outline" 
                 className="w-full"
                 disabled={isChecking}
               >
                 {isChecking ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Шалгаж байна...
+                  </>
                 ) : (
                   <>
                     <RefreshCw className="mr-2 h-4 w-4" />
@@ -290,12 +372,12 @@ export default function QPayPayment({
               </Button>
 
               <p className="text-xs text-center text-muted-foreground">
-                Төлбөр хийсний дараа автоматаар шинэчлэгдэнэ
+                Төлбөр хийсний дараа 10 секунд тутамд автоматаар шинэчлэгдэнэ
               </p>
             </>
           )}
 
-          {payment.status === 'paid' && (
+          {isPaid && (
             <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20">
               <CardContent className="p-4 text-center">
                 <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-2" />
@@ -305,6 +387,30 @@ export default function QPayPayment({
                 <p className="text-sm text-green-600 dark:text-green-500 mt-1">
                   Баярлалаа
                 </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {isFailed && (
+            <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20">
+              <CardContent className="p-4 text-center">
+                <XCircle className="mx-auto h-12 w-12 text-red-500 mb-2" />
+                <p className="font-medium text-red-700 dark:text-red-400">
+                  Төлбөр амжилтгүй боллоо
+                </p>
+                <p className="text-sm text-red-600 dark:text-red-500 mt-1">
+                  Дахин оролдоно уу
+                </p>
+                <Button 
+                  onClick={() => {
+                    setPayment(null);
+                    setPaymentState('idle');
+                  }} 
+                  variant="outline" 
+                  className="mt-4"
+                >
+                  Дахин оролдох
+                </Button>
               </CardContent>
             </Card>
           )}

@@ -1,1 +1,10 @@
 project_id = "xgyalkuyuontavstyokg"
+
+[functions.qpay-create-invoice]
+verify_jwt = false
+
+[functions.qpay-check-payment]
+verify_jwt = false
+
+[functions.qpay-callback]
+verify_jwt = false
