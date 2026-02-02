@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Shield, Users, Search, Edit, Check, X, AlertCircle } from 'lucide-react';
+import { Shield, Users, Search, Edit, Check, X, AlertCircle, Building2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,11 +8,19 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import type { AppRole } from '@/types/cargo';
+
+interface Branch {
+  id: string;
+  name: string;
+  code: string;
+}
 
 interface UserWithRole {
   id: string;
@@ -20,6 +28,7 @@ interface UserWithRole {
   full_name: string | null;
   created_at: string;
   roles: AppRole[];
+  branch_ids: string[];
 }
 
 const ROLE_LABELS: Record<AppRole, string> = {
@@ -52,15 +61,33 @@ export default function RoleManagement() {
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
   const [selectedRole, setSelectedRole] = useState<AppRole>('user');
+  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     fetchUsersWithRoles();
+    fetchBranches();
   }, []);
+
+  const fetchBranches = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('branches')
+        .select('id, name, code')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      setBranches(data || []);
+    } catch (error) {
+      console.error('Failed to fetch branches:', error);
+    }
+  };
 
   const fetchUsersWithRoles = async () => {
     setIsLoading(true);
@@ -80,15 +107,27 @@ export default function RoleManagement() {
 
       if (rolesError) throw rolesError;
 
-      // Combine profiles with roles
+      // Fetch all user branches
+      const { data: userBranches, error: branchesError } = await supabase
+        .from('user_branches')
+        .select('user_id, branch_id');
+
+      if (branchesError) throw branchesError;
+
+      // Combine profiles with roles and branches
       const usersWithRoles: UserWithRole[] = (profiles || []).map((profile) => {
         const userRoles = (roles || [])
           .filter((r) => r.user_id === profile.id)
           .map((r) => r.role as AppRole);
         
+        const branchIds = (userBranches || [])
+          .filter((ub) => ub.user_id === profile.id)
+          .map((ub) => ub.branch_id);
+        
         return {
           ...profile,
           roles: userRoles.length > 0 ? userRoles : ['user' as AppRole],
+          branch_ids: branchIds,
         };
       });
 
@@ -110,6 +149,15 @@ export default function RoleManagement() {
     // Set the primary role (first non-user role, or user if only user)
     const primaryRole = user.roles.find((r) => r !== 'user') || 'user';
     setSelectedRole(primaryRole);
+    setSelectedBranches(user.branch_ids || []);
+  };
+
+  const handleBranchToggle = (branchId: string) => {
+    setSelectedBranches((prev) =>
+      prev.includes(branchId)
+        ? prev.filter((id) => id !== branchId)
+        : [...prev, branchId]
+    );
   };
 
   const handleSaveRole = async () => {
@@ -155,9 +203,30 @@ export default function RoleManagement() {
         }
       }
 
+      // Update branch assignments
+      // First, delete all existing branch assignments for this user
+      await supabase
+        .from('user_branches')
+        .delete()
+        .eq('user_id', editingUser.id);
+
+      // Then, insert new branch assignments
+      if (selectedBranches.length > 0) {
+        const branchInserts = selectedBranches.map((branchId) => ({
+          user_id: editingUser.id,
+          branch_id: branchId,
+        }));
+
+        const { error: branchError } = await supabase
+          .from('user_branches')
+          .insert(branchInserts);
+
+        if (branchError) throw branchError;
+      }
+
       toast({
         title: 'Амжилттай',
-        description: `${editingUser.phone} хэрэглэгчийн эрх шинэчлэгдлээ`,
+        description: `${editingUser.phone} хэрэглэгчийн эрх болон салбар шинэчлэгдлээ`,
       });
 
       setEditingUser(null);
@@ -283,6 +352,7 @@ export default function RoleManagement() {
                 <TableHead>Утас</TableHead>
                 <TableHead>Нэр</TableHead>
                 <TableHead>Эрхүүд</TableHead>
+                <TableHead>Салбарууд</TableHead>
                 <TableHead>Бүртгэсэн</TableHead>
                 <TableHead className="w-[100px]">Үйлдэл</TableHead>
               </TableRow>
@@ -299,6 +369,22 @@ export default function RoleManagement() {
                           {ROLE_LABELS[role]}
                         </Badge>
                       ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {user.branch_ids.length > 0 ? (
+                        user.branch_ids.map((branchId) => {
+                          const branch = branches.find((b) => b.id === branchId);
+                          return branch ? (
+                            <Badge key={branchId} variant="outline" className="text-xs">
+                              {branch.name}
+                            </Badge>
+                          ) : null;
+                        })
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{format(new Date(user.created_at), 'yyyy.MM.dd')}</TableCell>
@@ -351,6 +437,42 @@ export default function RoleManagement() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Branch Selection */}
+            {(selectedRole === 'branch_admin' || selectedRole === 'admin') && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Салбар сонгох
+                </Label>
+                <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                  {branches.length > 0 ? (
+                    branches.map((branch) => (
+                      <div key={branch.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`branch-${branch.id}`}
+                          checked={selectedBranches.includes(branch.id)}
+                          onCheckedChange={() => handleBranchToggle(branch.id)}
+                        />
+                        <Label
+                          htmlFor={`branch-${branch.id}`}
+                          className="text-sm font-normal cursor-pointer flex-1"
+                        >
+                          {branch.name} <span className="text-muted-foreground">({branch.code})</span>
+                        </Label>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Салбар бүртгэгдээгүй байна</p>
+                  )}
+                </div>
+                {selectedBranches.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {selectedBranches.length} салбар сонгогдсон
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="bg-muted p-3 rounded-lg">
               <p className="text-sm font-medium mb-2">Энэ эрх нь:</p>
