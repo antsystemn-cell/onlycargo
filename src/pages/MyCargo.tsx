@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, Plus, Search } from 'lucide-react';
+import { Package, Plus, Search, CreditCard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import CargoCard from '@/components/cargo/CargoCard';
 import CargoPreregistrationCard from '@/components/cargo/CargoPreregistrationCard';
+import CargoDetailModal from '@/components/cargo/CargoDetailModal';
+import QPayPayment from '@/components/payment/QPayPayment';
 import { useToast } from '@/hooks/use-toast';
 import type { Cargo, CargoStatus, CargoPreregistration } from '@/types/cargo';
 
@@ -25,6 +27,13 @@ export default function MyCargo() {
   const [newTrackNumber, setNewTrackNumber] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Detail modal state
+  const [selectedCargo, setSelectedCargo] = useState<Cargo | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  
+  // Payment modal state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -53,6 +62,7 @@ export default function MyCargo() {
           .from('cargo_preregistrations')
           .select('*')
           .eq('user_id', user.id)
+          .is('matched_cargo_id', null) // Only show unmatched preregistrations
           .order('created_at', { ascending: false }),
       ]);
 
@@ -139,8 +149,32 @@ export default function MyCargo() {
     });
   };
 
-  const selectedCargo = cargo.filter((c) => selectedIds.has(c.id));
-  const totalPrice = selectedCargo.reduce((sum, c) => sum + (c.price || 0), 0);
+  const handleCargoClick = (cargo: Cargo) => {
+    setSelectedCargo(cargo);
+    setDetailModalOpen(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    setPaymentModalOpen(false);
+    setSelectedIds(new Set());
+    fetchData();
+    toast({
+      title: 'Амжилттай',
+      description: 'Төлбөр амжилттай төлөгдлөө',
+    });
+  };
+
+  const handlePaymentClose = () => {
+    setPaymentModalOpen(false);
+  };
+
+  // Filter cargo that are ready for pickup (ready_warehouse status)
+  const readyCargo = cargo.filter((c) => c.status === 'ready_warehouse');
+  const selectedCargoItems = cargo.filter((c) => selectedIds.has(c.id));
+  const totalPrice = selectedCargoItems.reduce((sum, c) => sum + (c.price || 0), 0);
+  
+  // Check if all selected cargo are ready for payment
+  const canPay = selectedIds.size > 0 && selectedCargoItems.every(c => c.status === 'ready_warehouse' && c.price && c.price > 0);
 
   if (authLoading || isLoading) {
     return (
@@ -224,21 +258,37 @@ export default function MyCargo() {
                 <>
                   <div className="space-y-3">
                     {cargo.map((item) => (
-                      <CargoCard
-                        key={item.id}
-                        cargo={item}
-                        showPrice
-                        showCheckbox
-                        selected={selectedIds.has(item.id)}
-                        onSelect={handleSelect}
-                      />
+                      <div 
+                        key={item.id} 
+                        onClick={() => handleCargoClick(item)}
+                        className="cursor-pointer transition-transform active:scale-[0.98]"
+                      >
+                        <CargoCard
+                          cargo={item}
+                          showPrice
+                          showCheckbox={item.status === 'ready_warehouse'}
+                          selected={selectedIds.has(item.id)}
+                          onSelect={(id, selected) => {
+                            // Prevent click propagation when checkbox is clicked
+                            handleSelect(id, selected);
+                          }}
+                        />
+                      </div>
                     ))}
                   </div>
 
+                  {/* Payment Panel */}
                   {selectedIds.size > 0 && (
                     <Card className="sticky bottom-24 border-primary shadow-lg animate-slide-up">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-base">Сонгосон ачаа</CardTitle>
+                        <CardDescription>
+                          {!canPay && selectedIds.size > 0 && (
+                            <span className="text-destructive text-xs">
+                              Зөвхөн бэлэн болсон, үнэ тогтоогдсон ачаа төлөх боломжтой
+                            </span>
+                          )}
+                        </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         <div className="flex items-center justify-between">
@@ -249,8 +299,13 @@ export default function MyCargo() {
                             {totalPrice.toLocaleString()}₮
                           </span>
                         </div>
-                        <Button className="w-full" disabled>
-                          QPay-ээр төлөх (Тун удахгүй)
+                        <Button 
+                          className="w-full" 
+                          disabled={!canPay}
+                          onClick={() => setPaymentModalOpen(true)}
+                        >
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          QPay-ээр төлөх
                         </Button>
                       </CardContent>
                     </Card>
@@ -286,6 +341,35 @@ export default function MyCargo() {
           </Tabs>
         </div>
       </main>
+
+      {/* Cargo Detail Modal */}
+      <CargoDetailModal
+        cargo={selectedCargo}
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+      />
+
+      {/* QPay Payment Modal */}
+      {user && (
+        <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                QPay төлбөр
+              </DialogTitle>
+            </DialogHeader>
+            <QPayPayment
+              cargoIds={Array.from(selectedIds)}
+              totalAmount={totalPrice}
+              userId={user.id}
+              branchId={profile?.default_branch_id || null}
+              onSuccess={handlePaymentSuccess}
+              onClose={handlePaymentClose}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

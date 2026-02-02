@@ -1,15 +1,48 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import useEmblaCarousel from 'embla-carousel-react';
+import Autoplay from 'embla-carousel-autoplay';
 import type { Banner } from '@/types/cargo';
 
 export default function BannerCarousel() {
   const [banners, setBanners] = useState<Banner[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const [emblaRef, emblaApi] = useEmblaCarousel(
+    { loop: true, align: 'start' },
+    [Autoplay({ delay: 5000, stopOnInteraction: false })]
+  );
+
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev();
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext();
+  }, [emblaApi]);
+
+  const scrollTo = useCallback((index: number) => {
+    if (emblaApi) emblaApi.scrollTo(index);
+  }, [emblaApi]);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on('select', onSelect);
+    emblaApi.on('reInit', onSelect);
+    return () => {
+      emblaApi.off('select', onSelect);
+      emblaApi.off('reInit', onSelect);
+    };
+  }, [emblaApi, onSelect]);
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -28,59 +61,6 @@ export default function BannerCarousel() {
     fetchBanners();
   }, []);
 
-  // Auto-play carousel
-  useEffect(() => {
-    if (banners.length <= 1) return;
-
-    const startAutoPlay = () => {
-      autoPlayRef.current = setInterval(() => {
-        setCurrentIndex((prev) => (prev + 1) % banners.length);
-      }, 5000);
-    };
-
-    startAutoPlay();
-
-    return () => {
-      if (autoPlayRef.current) {
-        clearInterval(autoPlayRef.current);
-      }
-    };
-  }, [banners.length]);
-
-  // Scroll to current index
-  useEffect(() => {
-    if (scrollRef.current && banners.length > 0) {
-      const child = scrollRef.current.children[currentIndex] as HTMLElement;
-      if (child) {
-        child.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-      }
-    }
-  }, [currentIndex, banners.length]);
-
-  const handleScroll = () => {
-    if (scrollRef.current) {
-      const scrollLeft = scrollRef.current.scrollLeft;
-      const childWidth = scrollRef.current.children[0]?.clientWidth || 0;
-      if (childWidth > 0) {
-        const newIndex = Math.round(scrollLeft / childWidth);
-        if (newIndex !== currentIndex && newIndex >= 0 && newIndex < banners.length) {
-          setCurrentIndex(newIndex);
-        }
-      }
-    }
-  };
-
-  const goToSlide = (index: number) => {
-    setCurrentIndex(index);
-    // Reset autoplay timer
-    if (autoPlayRef.current) {
-      clearInterval(autoPlayRef.current);
-      autoPlayRef.current = setInterval(() => {
-        setCurrentIndex((prev) => (prev + 1) % banners.length);
-      }, 5000);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="h-40 rounded-2xl bg-muted animate-pulse" />
@@ -93,67 +73,64 @@ export default function BannerCarousel() {
 
   return (
     <div className="relative">
-      {/* Swipeable container */}
-      <div 
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      >
-        {banners.map((banner, idx) => (
-          <div 
-            key={banner.id}
-            className="min-w-full flex-shrink-0 snap-center"
-          >
+      {/* Embla Carousel Container */}
+      <div className="overflow-hidden rounded-2xl" ref={emblaRef}>
+        <div className="flex">
+          {banners.map((banner) => (
             <div 
-              className="relative h-40 rounded-2xl overflow-hidden border shadow-sm"
-              style={{
-                background: banner.image_url 
-                  ? `linear-gradient(to right, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 100%), url(${banner.image_url}) center/cover`
-                  : 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)/0.7) 100%)'
-              }}
+              key={banner.id}
+              className="flex-[0_0_100%] min-w-0"
             >
-              <div className="absolute inset-0 p-4 flex flex-col justify-end text-white">
-                <h3 className="font-bold text-lg mb-1 drop-shadow-md line-clamp-1">
-                  {banner.title}
-                </h3>
-                {banner.description && (
-                  <p className="text-sm text-white/90 line-clamp-2 drop-shadow-sm">
-                    {banner.description}
-                  </p>
-                )}
-                {banner.link_url && (
-                  <a 
-                    href={banner.link_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-white/90 hover:text-white transition-colors"
-                  >
-                    Дэлгэрэнгүй <ExternalLink className="h-3 w-3" />
-                  </a>
-                )}
+              <div 
+                className="relative h-40 overflow-hidden border shadow-sm mx-1 rounded-2xl"
+                style={{
+                  background: banner.image_url 
+                    ? `linear-gradient(to right, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 100%), url(${banner.image_url}) center/cover`
+                    : 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary)/0.7) 100%)'
+                }}
+              >
+                <div className="absolute inset-0 p-4 flex flex-col justify-end text-white">
+                  <h3 className="font-bold text-lg mb-1 drop-shadow-md line-clamp-1">
+                    {banner.title}
+                  </h3>
+                  {banner.description && (
+                    <p className="text-sm text-white/90 line-clamp-2 drop-shadow-sm">
+                      {banner.description}
+                    </p>
+                  )}
+                  {banner.link_url && (
+                    <a 
+                      href={banner.link_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-white/90 hover:text-white transition-colors"
+                    >
+                      Дэлгэрэнгүй <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* Navigation arrows */}
+      {/* Navigation arrows - only show if more than 1 banner */}
       {banners.length > 1 && (
         <>
           <Button
             variant="secondary"
             size="icon"
-            className="absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md opacity-80 hover:opacity-100"
-            onClick={() => goToSlide((currentIndex - 1 + banners.length) % banners.length)}
+            className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md opacity-80 hover:opacity-100 z-10"
+            onClick={scrollPrev}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button
             variant="secondary"
             size="icon"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md opacity-80 hover:opacity-100"
-            onClick={() => goToSlide((currentIndex + 1) % banners.length)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md opacity-80 hover:opacity-100 z-10"
+            onClick={scrollNext}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -166,9 +143,9 @@ export default function BannerCarousel() {
           {banners.map((_, idx) => (
             <button
               key={idx}
-              onClick={() => goToSlide(idx)}
+              onClick={() => scrollTo(idx)}
               className={`h-1.5 rounded-full transition-all ${
-                idx === currentIndex 
+                idx === selectedIndex 
                   ? 'w-4 bg-primary' 
                   : 'w-1.5 bg-primary/30 hover:bg-primary/50'
               }`}
