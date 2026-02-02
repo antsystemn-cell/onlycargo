@@ -6,14 +6,119 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// QPay API v2 endpoints
+const QPAY_BASE_URL = "https://merchant.qpay.mn/v2";
+
+interface QPayTokenResponse {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+}
+
+interface QPayPaymentCheckResponse {
+  count: number;
+  paid_amount: number;
+  rows: Array<{
+    payment_id: string;
+    payment_status: "NEW" | "FAILED" | "PAID" | "REFUNDED";
+    payment_date: string;
+  }>;
+}
+
+/**
+ * Get QPay access token using Basic Auth
+ */
+async function getQPayToken(username: string, password: string): Promise<{ access_token: string; refresh_token: string }> {
+  console.log("[Callback] Requesting QPay access token...");
+  
+  const credentials = btoa(`${username}:${password}`);
+  
+  const response = await fetch(`${QPAY_BASE_URL}/auth/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Basic ${credentials}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`QPay auth failed: ${response.status}`);
+  }
+
+  const data: QPayTokenResponse = await response.json();
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  };
+}
+
+/**
+ * Refresh QPay access token
+ */
+async function refreshQPayToken(refreshToken: string): Promise<{ access_token: string; refresh_token: string }> {
+  console.log("[Callback] Refreshing QPay access token...");
+  
+  const response = await fetch(`${QPAY_BASE_URL}/auth/refresh`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${refreshToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`QPay token refresh failed: ${response.status}`);
+  }
+
+  const data: QPayTokenResponse = await response.json();
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  };
+}
+
+/**
+ * Check payment status via QPay API v2
+ * POST /v2/payment/check with object_type=INVOICE
+ */
+async function checkPaymentStatus(
+  accessToken: string,
+  invoiceId: string
+): Promise<{ data: QPayPaymentCheckResponse | null; tokenExpired: boolean }> {
+  const response = await fetch(`${QPAY_BASE_URL}/payment/check`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      object_type: "INVOICE",
+      object_id: invoiceId,
+      offset: {
+        page_number: 1,
+        page_limit: 100,
+      },
+    }),
+  });
+
+  // Handle 401 - token expired
+  if (response.status === 401) {
+    return { data: null, tokenExpired: true };
+  }
+
+  if (!response.ok) {
+    throw new Error(`QPay check failed: ${response.status}`);
+  }
+
+  const data: QPayPaymentCheckResponse = await response.json();
+  return { data, tokenExpired: false };
+}
+
 /**
  * QPay Callback/Webhook Handler
  * 
  * This endpoint is called by QPay when a payment status changes.
- * Documentation: https://developer.qpay.mn
- * 
- * The callback_url is provided during invoice creation and QPay will
- * POST to this URL when payment is completed.
+ * QPay will POST to this URL when payment is completed.
  */
 serve(async (req) => {
   // Handle CORS preflight
@@ -108,73 +213,52 @@ serve(async (req) => {
       );
     }
 
-    // Check payment status with QPay API
+    // Verify payment status with QPay API v2
     const qpayUsername = Deno.env.get("QPAY_USERNAME");
     const qpayPassword = Deno.env.get("QPAY_PASSWORD");
 
     if (qpayUsername && qpayPassword && payment.qpay_invoice_id) {
-      console.log("[Callback] Verifying with QPay API...");
+      console.log("[Callback] Verifying with QPay API v2...");
       
       try {
         // Get access token
-        const credentials = btoa(`${qpayUsername}:${qpayPassword}`);
-        const tokenResponse = await fetch("https://merchant.qpay.mn/v2/auth/token", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Basic ${credentials}`,
-          },
-        });
+        let tokens = await getQPayToken(qpayUsername, qpayPassword);
+        let accessToken = tokens.access_token;
+        let refreshToken = tokens.refresh_token;
 
-        if (tokenResponse.ok) {
-          const tokenData = await tokenResponse.json();
-          const accessToken = tokenData.access_token;
+        // Check payment status
+        let checkResult = await checkPaymentStatus(accessToken, payment.qpay_invoice_id);
 
-          // Check payment
-          const checkResponse = await fetch("https://merchant.qpay.mn/v2/payment/check", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({
-              object_type: "INVOICE",
-              object_id: payment.qpay_invoice_id,
-              offset: {
-                page_number: 1,
-                page_limit: 100,
-              },
-            }),
-          });
+        // Handle 401 - retry with refreshed token
+        if (checkResult.tokenExpired) {
+          console.log("[Callback] Token expired, refreshing...");
+          const refreshedTokens = await refreshQPayToken(refreshToken);
+          accessToken = refreshedTokens.access_token;
+          checkResult = await checkPaymentStatus(accessToken, payment.qpay_invoice_id);
+        }
 
-          if (checkResponse.ok) {
-            const checkData = await checkResponse.json();
-            console.log("[Callback] QPay check result:", checkData);
+        if (checkResult.data?.rows && checkResult.data.rows.length > 0) {
+          const paidPayment = checkResult.data.rows.find(row => row.payment_status === "PAID");
+          
+          if (paidPayment) {
+            console.log("[Callback] Payment confirmed PAID");
+            
+            // Update payment status
+            const { error: updateError } = await supabase
+              .from("payments")
+              .update({
+                status: "paid",
+                paid_at: paidPayment.payment_date || new Date().toISOString(),
+                notes: payment.notes 
+                  ? `${payment.notes} | QPay Payment: ${paidPayment.payment_id}`
+                  : `QPay Payment: ${paidPayment.payment_id}`,
+              })
+              .eq("id", payment.id);
 
-            if (checkData.rows && checkData.rows.length > 0) {
-              const paidPayment = checkData.rows.find((row: any) => row.payment_status === "PAID");
-              
-              if (paidPayment) {
-                console.log("[Callback] Payment confirmed PAID");
-                
-                // Update payment status
-                const { error: updateError } = await supabase
-                  .from("payments")
-                  .update({
-                    status: "paid",
-                    paid_at: paidPayment.payment_date || new Date().toISOString(),
-                    notes: payment.notes 
-                      ? `${payment.notes} | QPay Payment: ${paidPayment.payment_id}`
-                      : `QPay Payment: ${paidPayment.payment_id}`,
-                  })
-                  .eq("id", payment.id);
-
-                if (updateError) {
-                  console.error("[Callback] Update error:", updateError);
-                } else {
-                  console.log("[Callback] Payment marked as paid");
-                }
-              }
+            if (updateError) {
+              console.error("[Callback] Update error:", updateError);
+            } else {
+              console.log("[Callback] Payment marked as paid");
             }
           }
         }

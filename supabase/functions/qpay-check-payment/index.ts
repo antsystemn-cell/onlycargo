@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// QPay API endpoints (production)
+// QPay API v2 endpoints (production)
 const QPAY_BASE_URL = "https://merchant.qpay.mn/v2";
 
 interface CheckPaymentRequest {
@@ -15,6 +15,7 @@ interface CheckPaymentRequest {
 
 interface QPayTokenResponse {
   access_token: string;
+  refresh_token: string;
   expires_in: number;
 }
 
@@ -34,10 +35,10 @@ interface QPayPaymentCheckResponse {
 }
 
 /**
- * Get QPay access token
- * Documentation: https://developer.qpay.mn/#токен-авах-хүсэлт
+ * Get QPay access token using Basic Auth
+ * QPay API v2: POST /v2/auth/token with Basic Auth
  */
-async function getQPayToken(username: string, password: string): Promise<string> {
+async function getQPayToken(username: string, password: string): Promise<{ access_token: string; refresh_token: string }> {
   console.log("[QPay] Requesting access token for payment check...");
   
   const credentials = btoa(`${username}:${password}`);
@@ -62,19 +63,53 @@ async function getQPayToken(username: string, password: string): Promise<string>
     throw new Error("QPay returned empty access token");
   }
   
-  return data.access_token;
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  };
+}
+
+/**
+ * Refresh QPay access token
+ * QPay API v2: POST /v2/auth/refresh with Bearer refresh_token
+ */
+async function refreshQPayToken(refreshToken: string): Promise<{ access_token: string; refresh_token: string }> {
+  console.log("[QPay] Refreshing access token...");
+  
+  const response = await fetch(`${QPAY_BASE_URL}/auth/refresh`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${refreshToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[QPay] Token refresh failed:", response.status, errorText);
+    throw new Error(`QPay token refresh failed: ${response.status}`);
+  }
+
+  const data: QPayTokenResponse = await response.json();
+  
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  };
 }
 
 /**
  * Check payment status from QPay
- * Documentation: https://developer.qpay.mn/#төлбөр-шалгах
+ * QPay API v2: POST /v2/payment/check
+ * object_type = INVOICE, object_id = invoice_id
  */
 async function checkQPayPayment(
   accessToken: string,
   invoiceId: string
-): Promise<QPayPaymentCheckResponse> {
+): Promise<{ data: QPayPaymentCheckResponse | null; tokenExpired: boolean }> {
   console.log("[QPay] Checking payment status for invoice:", invoiceId);
   
+  // QPay v2 payment check request body
   const requestBody = {
     object_type: "INVOICE",
     object_id: invoiceId,
@@ -92,6 +127,12 @@ async function checkQPayPayment(
     },
     body: JSON.stringify(requestBody),
   });
+
+  // Handle 401 - token expired
+  if (response.status === 401) {
+    console.log("[QPay] Token expired (401), needs refresh");
+    return { data: null, tokenExpired: true };
+  }
 
   const responseText = await response.text();
 
@@ -114,24 +155,7 @@ async function checkQPayPayment(
     rows_count: data.rows?.length || 0,
   });
 
-  return data;
-}
-
-/**
- * Map QPay payment status to internal status
- */
-function mapQPayStatus(qpayStatus: string): "pending" | "paid" | "failed" | "refunded" {
-  switch (qpayStatus) {
-    case "PAID":
-      return "paid";
-    case "FAILED":
-      return "failed";
-    case "REFUNDED":
-      return "refunded";
-    case "NEW":
-    default:
-      return "pending";
-  }
+  return { data, tokenExpired: false };
 }
 
 serve(async (req) => {
@@ -224,17 +248,30 @@ serve(async (req) => {
     const isDemoPayment = payment.qpay_invoice_id?.startsWith("DEMO-");
 
     if (qpayUsername && qpayPassword && payment.qpay_invoice_id && !isDemoPayment) {
-      // Production mode - check with QPay API
+      // Production mode - check with QPay API v2
       console.log("[QPay] Checking payment status via API...");
       
       try {
-        const accessToken = await getQPayToken(qpayUsername, qpayPassword);
-        const checkResult = await checkQPayPayment(accessToken, payment.qpay_invoice_id);
+        // Get fresh token
+        let tokens = await getQPayToken(qpayUsername, qpayPassword);
+        let accessToken = tokens.access_token;
+        let refreshToken = tokens.refresh_token;
 
-        // Process QPay response
-        if (checkResult.rows && checkResult.rows.length > 0) {
+        // Check payment status
+        let checkResult = await checkQPayPayment(accessToken, payment.qpay_invoice_id);
+
+        // Handle 401 - retry with refreshed token
+        if (checkResult.tokenExpired) {
+          console.log("[QPay] Token expired, refreshing and retrying...");
+          const refreshedTokens = await refreshQPayToken(refreshToken);
+          accessToken = refreshedTokens.access_token;
+          checkResult = await checkQPayPayment(accessToken, payment.qpay_invoice_id);
+        }
+
+        // Process QPay response - status = PAID means successful
+        if (checkResult.data?.rows && checkResult.data.rows.length > 0) {
           // Find the most recent payment with PAID status
-          const paidPayment = checkResult.rows.find(row => row.payment_status === "PAID");
+          const paidPayment = checkResult.data.rows.find(row => row.payment_status === "PAID");
           
           if (paidPayment) {
             newStatus = "paid";
@@ -243,14 +280,14 @@ serve(async (req) => {
             console.log("[QPay] Payment confirmed PAID:", qpayPaymentId);
           } else {
             // Check for failed
-            const failedPayment = checkResult.rows.find(row => row.payment_status === "FAILED");
+            const failedPayment = checkResult.data.rows.find(row => row.payment_status === "FAILED");
             if (failedPayment) {
               newStatus = "failed";
               console.log("[QPay] Payment FAILED");
             }
             
             // Check for refunded
-            const refundedPayment = checkResult.rows.find(row => row.payment_status === "REFUNDED");
+            const refundedPayment = checkResult.data.rows.find(row => row.payment_status === "REFUNDED");
             if (refundedPayment) {
               newStatus = "refunded";
               console.log("[QPay] Payment REFUNDED");
@@ -325,9 +362,6 @@ serve(async (req) => {
           if (paymentCargos && paymentCargos.length > 0) {
             const cargoIds = paymentCargos.map((pc: any) => pc.cargo_id);
             console.log("[DB] Marking cargo as payment complete:", cargoIds);
-            
-            // Optionally update cargo status or add payment flag
-            // This depends on business logic - cargo might still need to be handed over
           }
         }
       }
