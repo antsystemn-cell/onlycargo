@@ -361,7 +361,15 @@ serve(async (req) => {
     const qpayUrls = qpayInvoice.urls || [];
     console.log("[QPay] Bank apps from response:", qpayUrls.map(u => u.name));
 
-    // Step 6: Create payment record in database
+    // Step 6: Format QR image as proper data URL for browser display
+    // QPay returns raw base64 PNG, we need to add the data URL prefix
+    let qrImageDataUrl = qpayInvoice.qr_image;
+    if (qrImageDataUrl && !qrImageDataUrl.startsWith('data:')) {
+      qrImageDataUrl = `data:image/png;base64,${qrImageDataUrl}`;
+    }
+    console.log("[QPay] QR image formatted:", qrImageDataUrl ? "OK" : "MISSING");
+
+    // Step 7: Create payment record in database
     const { data: payment, error: paymentError } = await supabase
       .from("payments")
       .insert({
@@ -371,7 +379,7 @@ serve(async (req) => {
         status: "pending",
         qpay_invoice_id: qpayInvoice.invoice_id,
         qpay_qr_text: qpayInvoice.qr_text,
-        qpay_qr_image: qpayInvoice.qr_image,  // Base64 PNG from QPay - NEVER generate locally
+        qpay_qr_image: qrImageDataUrl,  // Base64 PNG with data URL prefix
         qpay_urls: qpayUrls,  // Store as array from QPay response
         notes: senderInvoiceNo,
         created_by: user.id,
@@ -386,7 +394,7 @@ serve(async (req) => {
 
     console.log("[DB] Payment record created:", payment.id);
 
-    // Step 7: Link payment to cargo items
+    // Step 8: Link payment to cargo items
     const paymentCargoLinks = cargo_ids.map((cargo_id) => ({
       payment_id: payment.id,
       cargo_id,
@@ -400,7 +408,7 @@ serve(async (req) => {
       console.error("[DB] Payment-cargo link error:", linkError);
     }
 
-    // Step 8: Update cargo with payment reference
+    // Step 9: Update cargo with payment reference
     const { error: cargoUpdateError } = await supabase
       .from("cargo")
       .update({ payment_id: payment.id })
@@ -413,6 +421,7 @@ serve(async (req) => {
     console.log("[Success] Invoice created successfully:", {
       payment_id: payment.id,
       qpay_invoice_id: qpayInvoice.invoice_id,
+      has_qr_image: !!qrImageDataUrl,
       amount: amount,
       cargo_count: cargo_ids.length,
       bank_apps: qpayUrls.length,
@@ -422,7 +431,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         payment_id: payment.id,
-        qr_image: qpayInvoice.qr_image,  // From QPay response
+        qr_image: qrImageDataUrl,        // Formatted data URL for browser display
         qr_text: qpayInvoice.qr_text,    // From QPay response
         urls: qpayUrls,                   // Bank apps array from QPay response
         invoice_id: qpayInvoice.invoice_id,
