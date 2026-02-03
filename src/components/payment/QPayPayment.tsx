@@ -355,8 +355,8 @@ export default function QPayPayment({
                   <p className="text-sm text-center text-muted-foreground">
                     Эсвэл банкны апп-аар нээх:
                   </p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {bankApps.slice(0, 9).map((app, index) => (
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-64 overflow-y-auto p-1">
+                    {bankApps.map((app, index) => (
                       <a
                         key={`${app.name}-${index}`}
                         href={app.link}
@@ -366,16 +366,15 @@ export default function QPayPayment({
                           <img 
                             src={app.logo} 
                             alt={app.name} 
-                            className="h-6 w-6 object-contain"
+                            className="h-8 w-8 object-contain"
                             onError={(e) => {
-                              // Fallback to icon if logo fails to load
                               e.currentTarget.style.display = 'none';
                               e.currentTarget.nextElementSibling?.classList.remove('hidden');
                             }}
                           />
                         ) : null}
-                        <Smartphone className={`h-5 w-5 ${app.logo ? 'hidden' : ''}`} />
-                        <span className="text-xs truncate w-full">{app.name}</span>
+                        <Smartphone className={`h-6 w-6 ${app.logo ? 'hidden' : ''}`} />
+                        <span className="text-[10px] leading-tight line-clamp-2 w-full">{app.name}</span>
                       </a>
                     ))}
                   </div>
