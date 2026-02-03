@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Payment, PaymentStatus } from '@/types/cargo';
@@ -352,32 +353,39 @@ export default function QPayPayment({
               {/* Bank app links - dynamically from QPay response.urls, NEVER hardcoded */}
               {bankApps.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-sm text-center text-muted-foreground">
-                    Эсвэл банкны апп-аар нээх:
-                  </p>
-                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-64 overflow-y-auto p-1">
-                    {bankApps.map((app, index) => (
-                      <a
-                        key={`${app.name}-${index}`}
-                        href={app.link}
-                        className="flex flex-col items-center gap-1 p-2 rounded-lg border hover:bg-muted transition-colors text-center"
-                      >
-                        {app.logo ? (
-                          <img 
-                            src={app.logo} 
-                            alt={app.name} 
-                            className="h-8 w-8 object-contain"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
-                        ) : null}
-                        <Smartphone className={`h-6 w-6 ${app.logo ? 'hidden' : ''}`} />
-                        <span className="text-[10px] leading-tight line-clamp-2 w-full">{app.name}</span>
-                      </a>
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Эсвэл банкны апп-аар нээх:
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      {bankApps.length} апп
+                    </span>
                   </div>
+                  <ScrollArea className="h-auto max-h-[280px] sm:max-h-[320px]">
+                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 p-1">
+                      {bankApps.map((app, index) => (
+                        <a
+                          key={`${app.name}-${index}`}
+                          href={app.link}
+                          className="flex flex-col items-center gap-1 p-2 rounded-lg border hover:bg-muted transition-colors text-center"
+                        >
+                          {app.logo ? (
+                            <img 
+                              src={app.logo} 
+                              alt={app.name} 
+                              className="h-8 w-8 sm:h-10 sm:w-10 object-contain"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                          ) : null}
+                          <Smartphone className={`h-6 w-6 sm:h-8 sm:w-8 ${app.logo ? 'hidden' : ''}`} />
+                          <span className="text-[10px] sm:text-xs leading-tight line-clamp-2 w-full">{app.name}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </div>
               )}
 
