@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Payment, PaymentStatus } from '@/types/cargo';
@@ -361,7 +361,7 @@ export default function QPayPayment({
                       {bankApps.length} апп
                     </span>
                   </div>
-                  <ScrollArea className="h-auto max-h-[280px] sm:max-h-[320px]">
+                  <div className="max-h-[240px] sm:max-h-[320px] overflow-y-auto overscroll-contain touch-pan-y scrollbar-thin">
                     <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 p-1">
                       {bankApps.map((app, index) => (
                         <a
@@ -385,7 +385,7 @@ export default function QPayPayment({
                         </a>
                       ))}
                     </div>
-                  </ScrollArea>
+                  </div>
                 </div>
               )}
 
