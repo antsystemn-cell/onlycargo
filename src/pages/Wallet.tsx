@@ -3,20 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { Wallet as WalletIcon, Plus, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
 import { formatPrice } from '@/lib/priceCalculation';
 import { WalletTransactionHistory } from '@/components/wallet/WalletTransactionHistory';
+import { WalletTopupModal } from '@/components/wallet/WalletTopupModal';
 
 export default function WalletPage() {
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
-  const { wallet, transactions, balance, isLoading } = useWallet();
+  const { transactions, balance, refreshWallet, isLoading } = useWallet();
   const [showTopup, setShowTopup] = useState(false);
-  const [topupAmount, setTopupAmount] = useState('');
 
   if (authLoading || isLoading) {
     return (
@@ -56,49 +53,15 @@ export default function WalletPage() {
               </div>
 
               <div className="mt-6">
-                <Dialog open={showTopup} onOpenChange={setShowTopup}>
-                  <DialogTrigger asChild>
-                    <Button variant="secondary" className="w-full" size="lg">
-                      <Plus className="h-5 w-5 mr-2" />
-                      Цэнэглэх
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Түрийвч цэнэглэх</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Цэнэглэх дүн (₮)</Label>
-                        <Input
-                          type="number"
-                          value={topupAmount}
-                          onChange={(e) => setTopupAmount(e.target.value)}
-                          placeholder="10000"
-                          min="1000"
-                          step="1000"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2">
-                        {[10000, 50000, 100000].map((amount) => (
-                          <Button
-                            key={amount}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setTopupAmount(String(amount))}
-                          >
-                            {formatPrice(amount)}
-                          </Button>
-                        ))}
-                      </div>
-
-                      <p className="text-sm text-muted-foreground text-center">
-                        QPay цэнэглэлт удахгүй нэмэгдэнэ
-                      </p>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Button 
+                  variant="secondary" 
+                  className="w-full" 
+                  size="lg"
+                  onClick={() => setShowTopup(true)}
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  QPay-ээр цэнэглэх
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -114,6 +77,15 @@ export default function WalletPage() {
           </Card>
         </div>
       </main>
+
+      <WalletTopupModal
+        open={showTopup}
+        onOpenChange={setShowTopup}
+        onSuccess={() => {
+          refreshWallet();
+          setShowTopup(false);
+        }}
+      />
     </div>
   );
 }
