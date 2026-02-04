@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, MapPin, Plus, Edit2, Trash2, History, LogOut } from 'lucide-react';
+import { User, MapPin, Plus, Edit2, Trash2, History, LogOut, Wallet, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,9 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
+import { useWallet } from '@/hooks/useWallet';
+import { useReferral } from '@/hooks/useReferral';
 import { supabase } from '@/integrations/supabase/client';
 import { signOut } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { formatPrice } from '@/lib/priceCalculation';
 import CargoCard from '@/components/cargo/CargoCard';
 import BranchSelector from '@/components/profile/BranchSelector';
 import type { DeliveryAddress, Cargo, CargoStatus } from '@/types/cargo';
@@ -19,6 +22,8 @@ export default function Profile() {
   const { user, profile, isLoading: authLoading, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { balance, isLoading: walletLoading } = useWallet();
+  const { totalReferrals, totalRewards, isLoading: referralLoading } = useReferral();
   const [addresses, setAddresses] = useState<DeliveryAddress[]>([]);
   const [cargoHistory, setCargoHistory] = useState<Cargo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -218,6 +223,42 @@ export default function Profile() {
 
       <main className="flex-1 px-4 py-6">
         <div className="mx-auto max-w-md space-y-6">
+          {/* Wallet & Referral Quick Cards */}
+          <div className="grid grid-cols-2 gap-3">
+            <Card 
+              className="cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => navigate('/wallet')}
+            >
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Wallet className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Түрийвч</p>
+                    <p className="font-bold text-primary">{formatPrice(balance)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card 
+              className="cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => navigate('/referral')}
+            >
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-purple-500/10">
+                    <Users className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Урилга</p>
+                    <p className="font-bold text-purple-600">{totalReferrals} найз</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
           {/* Profile Info */}
           <Card>
             <CardHeader>

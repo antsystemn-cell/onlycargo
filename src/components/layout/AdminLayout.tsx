@@ -13,6 +13,8 @@ import {
   Menu,
   Image,
   Shield,
+  MapPin,
+  Gift,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -29,7 +31,9 @@ const adminNavItems = [
   { href: '/admin/users', icon: Users, label: 'Хэрэглэгчид' },
   { href: '/admin/roles', icon: Shield, label: 'Эрх удирдах' },
   { href: '/admin/branches', icon: Building2, label: 'Салбарууд' },
+  { href: '/admin/delivery-zones', icon: MapPin, label: 'Хүргэлтийн бүс' },
   { href: '/admin/banners', icon: Image, label: 'Баннерүүд' },
+  { href: '/admin/referral-settings', icon: Gift, label: 'Урилгын тохиргоо' },
   { href: '/admin/settings', icon: Settings, label: 'Тохиргоо' },
 ];
 
