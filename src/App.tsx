@@ -30,9 +30,11 @@ import RoleManagement from "@/pages/admin/RoleManagement";
 import SiteSettings from "@/pages/admin/SiteSettings";
 import BranchManagement from "@/pages/admin/BranchManagement";
 import BannerManagement from "@/pages/admin/BannerManagement";
+import DeliveryZoneManagement from "@/pages/admin/DeliveryZoneManagement";
 
 // China Warehouse Pages
 import ChinaWarehouseRegister from "@/pages/china-warehouse/ChinaWarehouseRegister";
+import ShipmentLoading from "@/pages/china-warehouse/ShipmentLoading";
 
 const queryClient = new QueryClient();
 
@@ -68,11 +70,13 @@ const App = () => (
               <Route path="settings" element={<SiteSettings />} />
               <Route path="branches" element={<BranchManagement />} />
               <Route path="banners" element={<BannerManagement />} />
+              <Route path="delivery-zones" element={<DeliveryZoneManagement />} />
             </Route>
 
             {/* China Warehouse Routes */}
             <Route path="/china-warehouse" element={<ChinaWarehouseLayout />}>
               <Route index element={<ChinaWarehouseRegister />} />
+              <Route path="shipments" element={<ShipmentLoading />} />
             </Route>
 
             {/* Catch-all */}
