@@ -983,6 +983,62 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_topups: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_ref: string | null
+          paid_at: string | null
+          qpay_invoice_id: string | null
+          qpay_qr_image: string | null
+          qpay_qr_text: string | null
+          qpay_urls: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          invoice_ref?: string | null
+          paid_at?: string | null
+          qpay_invoice_id?: string | null
+          qpay_qr_image?: string | null
+          qpay_qr_text?: string | null
+          qpay_urls?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_ref?: string | null
+          paid_at?: string | null
+          qpay_invoice_id?: string | null
+          qpay_qr_image?: string | null
+          qpay_qr_text?: string | null
+          qpay_urls?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_topups_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallet_transactions: {
         Row: {
           amount: number
