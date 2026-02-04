@@ -57,13 +57,17 @@ export default function ChinaWarehouseRegister() {
     const cubicMeters = (length * width * height) / 1000000;
     const cubicMeterPrice = cubicMeters * pricing.per_cubic_meter;
     const kgPrice = weight * pricing.china_per_kg;
-    const totalPrice = cubicMeterPrice + kgPrice;
+    
+    // CRITICAL: Use MAX, not SUM - final price is the higher of the two
+    const totalPrice = Math.max(cubicMeterPrice, kgPrice);
+    const usedMethod = cubicMeterPrice > kgPrice ? 'volume' : 'weight';
 
     return {
       cubicMeterPrice: Math.round(cubicMeterPrice),
       kgPrice: Math.round(kgPrice),
       totalPrice: Math.round(totalPrice),
-      cubicMeters: Math.round(cubicMeters * 10000) / 10000, // 4 decimal places
+      cubicMeters: Math.round(cubicMeters * 10000) / 10000,
+      usedMethod,
     };
   };
 

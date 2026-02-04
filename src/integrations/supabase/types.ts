@@ -53,6 +53,8 @@ export type Database = {
       branches: {
         Row: {
           address: string | null
+          china_address_prefix: string | null
+          china_address_text: string | null
           code: string
           created_at: string
           id: string
@@ -60,9 +62,13 @@ export type Database = {
           name: string
           phone: string | null
           updated_at: string
+          volume_rate: number | null
+          weight_rate: number | null
         }
         Insert: {
           address?: string | null
+          china_address_prefix?: string | null
+          china_address_text?: string | null
           code: string
           created_at?: string
           id?: string
@@ -70,9 +76,13 @@ export type Database = {
           name: string
           phone?: string | null
           updated_at?: string
+          volume_rate?: number | null
+          weight_rate?: number | null
         }
         Update: {
           address?: string | null
+          china_address_prefix?: string | null
+          china_address_text?: string | null
           code?: string
           created_at?: string
           id?: string
@@ -80,6 +90,8 @@ export type Database = {
           name?: string
           phone?: string | null
           updated_at?: string
+          volume_rate?: number | null
+          weight_rate?: number | null
         }
         Relationships: []
       }
@@ -98,6 +110,7 @@ export type Database = {
           price: number | null
           registered_by: string | null
           shelf_location: string | null
+          shipment_id: string | null
           status: Database["public"]["Enums"]["cargo_status"]
           status_date: string
           total_cubic_meters: number | null
@@ -121,6 +134,7 @@ export type Database = {
           price?: number | null
           registered_by?: string | null
           shelf_location?: string | null
+          shipment_id?: string | null
           status?: Database["public"]["Enums"]["cargo_status"]
           status_date?: string
           total_cubic_meters?: number | null
@@ -144,6 +158,7 @@ export type Database = {
           price?: number | null
           registered_by?: string | null
           shelf_location?: string | null
+          shipment_id?: string | null
           status?: Database["public"]["Enums"]["cargo_status"]
           status_date?: string
           total_cubic_meters?: number | null
@@ -166,6 +181,13 @@ export type Database = {
             columns: ["payment_id"]
             isOneToOne: false
             referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargo_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
             referencedColumns: ["id"]
           },
         ]
@@ -293,6 +315,83 @@ export type Database = {
           },
         ]
       }
+      coupon_usage: {
+        Row: {
+          coupon_id: string
+          discount_applied: number
+          id: string
+          order_id: string | null
+          used_at: string
+          user_id: string
+        }
+        Insert: {
+          coupon_id: string
+          discount_applied: number
+          id?: string
+          order_id?: string | null
+          used_at?: string
+          user_id: string
+        }
+        Update: {
+          coupon_id?: string
+          discount_applied?: number
+          id?: string
+          order_id?: string | null
+          used_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_usage_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string
+          discount_type: string
+          discount_value: number
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          min_order_amount: number | null
+          updated_at: string
+          uses_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          discount_type: string
+          discount_value: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          min_order_amount?: number | null
+          updated_at?: string
+          uses_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          discount_type?: string
+          discount_value?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          min_order_amount?: number | null
+          updated_at?: string
+          uses_count?: number
+        }
+        Relationships: []
+      }
       delivery_addresses: {
         Row: {
           address_line: string
@@ -329,6 +428,167 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      delivery_order_items: {
+        Row: {
+          cargo_id: string
+          created_at: string
+          delivery_order_id: string
+          id: string
+          price: number
+        }
+        Insert: {
+          cargo_id: string
+          created_at?: string
+          delivery_order_id: string
+          id?: string
+          price?: number
+        }
+        Update: {
+          cargo_id?: string
+          created_at?: string
+          delivery_order_id?: string
+          id?: string
+          price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_order_items_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_order_items_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_order_items_delivery_order_id_fkey"
+            columns: ["delivery_order_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_orders: {
+        Row: {
+          cargo_price: number
+          created_at: string
+          delivery_address_id: string | null
+          delivery_price: number | null
+          delivery_type: string
+          delivery_zone_id: string | null
+          id: string
+          map_coordinates: Json | null
+          notes: string | null
+          payment_id: string | null
+          pickup_deadline: string | null
+          status: string
+          total_price: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cargo_price?: number
+          created_at?: string
+          delivery_address_id?: string | null
+          delivery_price?: number | null
+          delivery_type: string
+          delivery_zone_id?: string | null
+          id?: string
+          map_coordinates?: Json | null
+          notes?: string | null
+          payment_id?: string | null
+          pickup_deadline?: string | null
+          status?: string
+          total_price?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cargo_price?: number
+          created_at?: string
+          delivery_address_id?: string | null
+          delivery_price?: number | null
+          delivery_type?: string
+          delivery_zone_id?: string | null
+          id?: string
+          map_coordinates?: Json | null
+          notes?: string | null
+          payment_id?: string | null
+          pickup_deadline?: string | null
+          status?: string
+          total_price?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_orders_delivery_address_id_fkey"
+            columns: ["delivery_address_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_orders_delivery_zone_id_fkey"
+            columns: ["delivery_zone_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_zones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_orders_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      delivery_zones: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          polygon: Json | null
+          price: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          polygon?: Json | null
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          polygon?: Json | null
+          price?: number
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -502,6 +762,153 @@ export type Database = {
           },
         ]
       }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          user_id: string
+          uses_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          user_id: string
+          uses_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+          uses_count?: number
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          referral_code_id: string
+          referred_id: string
+          referrer_id: string
+          reward_amount: number | null
+          reward_paid: boolean
+          reward_paid_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referral_code_id: string
+          referred_id: string
+          referrer_id: string
+          reward_amount?: number | null
+          reward_paid?: boolean
+          reward_paid_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referral_code_id?: string
+          referred_id?: string
+          referrer_id?: string
+          reward_amount?: number | null
+          reward_paid?: boolean
+          reward_paid_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referral_code_id_fkey"
+            columns: ["referral_code_id"]
+            isOneToOne: false
+            referencedRelation: "referral_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipment_items: {
+        Row: {
+          added_at: string
+          cargo_id: string
+          id: string
+          shipment_id: string
+        }
+        Insert: {
+          added_at?: string
+          cargo_id: string
+          id?: string
+          shipment_id: string
+        }
+        Update: {
+          added_at?: string
+          cargo_id?: string
+          id?: string
+          shipment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipment_items_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipment_items_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipment_items_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipments: {
+        Row: {
+          cargo_count: number
+          created_at: string
+          id: string
+          loaded_at: string
+          loaded_by: string
+          notes: string | null
+          shipment_number: string
+          status: string
+          total_weight: number | null
+          updated_at: string
+        }
+        Insert: {
+          cargo_count?: number
+          created_at?: string
+          id?: string
+          loaded_at?: string
+          loaded_by: string
+          notes?: string | null
+          shipment_number: string
+          status?: string
+          total_weight?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cargo_count?: number
+          created_at?: string
+          id?: string
+          loaded_at?: string
+          loaded_by?: string
+          notes?: string | null
+          shipment_number?: string
+          status?: string
+          total_weight?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       site_settings: {
         Row: {
           id: string
@@ -576,6 +983,77 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          description: string | null
+          id: string
+          reference_id: string | null
+          reference_type: string | null
+          type: string
+          user_id: string
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          type: string
+          user_id: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          type?: string
+          user_id?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       cargo_public: {
@@ -604,6 +1082,23 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_cargo_price: {
+        Args: {
+          p_height: number
+          p_length: number
+          p_volume_rate?: number
+          p_weight: number
+          p_weight_rate?: number
+          p_width: number
+        }
+        Returns: {
+          cubic_meters: number
+          final_price: number
+          volume_price: number
+          weight_price: number
+        }[]
+      }
+      generate_referral_code: { Args: { p_user_id: string }; Returns: string }
       get_user_phone: { Args: never; Returns: string }
       has_role: {
         Args: {

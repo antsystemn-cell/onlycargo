@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Calculator as CalcIcon, Scale, Ruler } from 'lucide-react';
+import { Calculator as CalcIcon, Scale, Ruler, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
+import { calculateChargedWeight, formatPrice } from '@/lib/priceCalculation';
 
 export default function Calculator() {
   const { pricing, isLoading: settingsLoading } = useSiteSettings();
@@ -17,6 +18,7 @@ export default function Calculator() {
     volumetricWeight: number;
     chargedWeight: number;
     price: number;
+    usedMethod: 'weight' | 'volumetric';
   } | null>(null);
 
   const PRICE_PER_KG = pricing.per_kg;
@@ -27,15 +29,19 @@ export default function Calculator() {
     const w = parseFloat(width) || 0;
     const h = parseFloat(height) || 0;
 
-    const volumetricWeight = (l * w * h) / 5000;
-    const chargedWeight = Math.max(actualWeight, volumetricWeight);
-    const price = Math.ceil(chargedWeight) * PRICE_PER_KG;
+    // Use the shared calculation function for consistency
+    const { chargedWeight, volumetricWeight } = calculateChargedWeight(actualWeight, l, w, h);
+    
+    // Determine which method was used (MAX logic)
+    const usedMethod = volumetricWeight > actualWeight ? 'volumetric' : 'weight';
+    const price = chargedWeight * PRICE_PER_KG;
 
     setResult({
       actualWeight,
-      volumetricWeight: Math.round(volumetricWeight * 100) / 100,
-      chargedWeight: Math.ceil(chargedWeight),
+      volumetricWeight,
+      chargedWeight,
       price,
+      usedMethod,
     });
   };
 
@@ -141,7 +147,7 @@ export default function Calculator() {
                 <CardTitle className="text-base">Үр дүн</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 pt-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="rounded-lg bg-muted p-3">
                     <p className="text-muted-foreground text-xs">Бодит жин</p>
                     <p className="font-medium text-lg">{result.actualWeight} кг</p>
@@ -156,20 +162,32 @@ export default function Calculator() {
                     <div>
                       <p className="text-muted-foreground text-sm">Төлөх жин</p>
                       <p className="text-xl font-bold">{result.chargedWeight} кг</p>
+                      <p className="text-xs text-muted-foreground">
+                        ({result.usedMethod === 'volumetric' ? 'Эзлэхүүнээр' : 'Жингээр'} тооцсон)
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-muted-foreground text-sm">Төлбөр</p>
                       <p className="text-3xl font-bold text-primary">
-                        {result.price.toLocaleString()}₮
+                        {formatPrice(result.price)}
                       </p>
                     </div>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground pt-2 border-t">
-                  * Эзлэхүүний жин = (Урт × Өргөн × Өндөр) / 5000
-                  <br />* Бодит жин ба эзлэхүүний жингээс аль их нь тооцогдоно
-                  <br />* 1 кг = {PRICE_PER_KG.toLocaleString()}₮
-                </p>
+                <div className="pt-2 border-t space-y-1">
+                  <p className="text-xs text-muted-foreground flex items-start gap-1">
+                    <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                    Эзлэхүүний жин = (Урт × Өргөн × Өндөр) / 5000
+                  </p>
+                  <p className="text-xs text-muted-foreground flex items-start gap-1">
+                    <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                    <strong>Бодит жин, эзлэхүүний жингээс аль ИХ нь</strong> тооцогдоно
+                  </p>
+                  <p className="text-xs text-muted-foreground flex items-start gap-1">
+                    <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                    1 кг = {formatPrice(PRICE_PER_KG)}
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}

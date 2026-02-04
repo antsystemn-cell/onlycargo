@@ -31,6 +31,7 @@ export interface Cargo {
   total_cubic_meters: number | null;
   registered_by: string | null;
   payment_id: string | null;
+  shipment_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +60,108 @@ export interface Branch {
   code: string;
   address: string | null;
   phone: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  weight_rate: number;
+  volume_rate: number;
+  china_address_prefix: string;
+  china_address_text: string;
+}
+
+export interface DeliveryZone {
+  id: string;
+  name: string;
+  code: string;
+  price: number;
+  description: string | null;
+  polygon: any;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeliveryOrder {
+  id: string;
+  user_id: string;
+  payment_id: string | null;
+  delivery_type: 'self_pickup' | 'delivery';
+  delivery_zone_id: string | null;
+  delivery_address_id: string | null;
+  map_coordinates: { lat: number; lng: number } | null;
+  delivery_price: number;
+  cargo_price: number;
+  total_price: number;
+  status: 'pending' | 'paid' | 'processing' | 'delivering' | 'completed' | 'cancelled';
+  pickup_deadline: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Shipment {
+  id: string;
+  shipment_number: string;
+  loaded_by: string;
+  loaded_at: string;
+  cargo_count: number;
+  total_weight: number | null;
+  notes: string | null;
+  status: 'loaded' | 'in_transit' | 'arrived' | 'completed';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Wallet {
+  id: string;
+  user_id: string;
+  balance: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WalletTransaction {
+  id: string;
+  wallet_id: string;
+  user_id: string;
+  type: 'topup' | 'payment' | 'refund' | 'referral_reward' | 'admin_adjustment';
+  amount: number;
+  balance_after: number;
+  reference_id: string | null;
+  reference_type: string | null;
+  description: string | null;
+  created_at: string;
+}
+
+export interface ReferralCode {
+  id: string;
+  user_id: string;
+  code: string;
+  uses_count: number;
+  created_at: string;
+}
+
+export interface Referral {
+  id: string;
+  referrer_id: string;
+  referred_id: string;
+  referral_code_id: string;
+  reward_amount: number | null;
+  reward_paid: boolean;
+  reward_paid_at: string | null;
+  created_at: string;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discount_type: 'fixed' | 'percentage';
+  discount_value: number;
+  min_order_amount: number;
+  max_uses: number | null;
+  uses_count: number;
+  expires_at: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -166,6 +269,9 @@ export const STATUS_LABELS: Record<CargoStatus, string> = {
   ready_warehouse: 'Агуулахад бэлэн',
   completed: 'Хүлээлгэж өгсөн',
 };
+
+// Alias for backward compatibility
+export const CARGO_STATUS_LABELS = STATUS_LABELS;
 
 export const STATUS_COLORS: Record<CargoStatus, string> = {
   registered: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
