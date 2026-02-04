@@ -13,8 +13,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import BarcodeScanner from '@/components/barcode/BarcodeScanner';
 import { parseCargoError, logCargoOperation } from '@/lib/cargoErrors';
+import { STATUS_LABELS, type CargoStatus } from '@/types/cargo';
+
 const cargoSchema = z.object({
-  track_number: z.string().min(1, 'Трак дугаар оруулна уу'),
+  track_number: z.string().min(1, 'Трак дугаар оруулна у|у'),
   phone_number: z.string().regex(/^[6-9]\d{7}$/, 'Утасны дугаар буруу байна').optional().or(z.literal('')),
   weight: z.string().optional(),
   length: z.string().optional(),
@@ -22,11 +24,21 @@ const cargoSchema = z.object({
   height: z.string().optional(),
   shelf_location: z.string().optional(),
   notes: z.string().optional(),
+  status: z.enum(['registered', 'received_ereen', 'transporting', 'warehouse_processing', 'ready_warehouse', 'completed']),
 });
 
 type CargoFormValues = z.infer<typeof cargoSchema>;
 
 const shelfOptions = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'];
+
+const statusOptions: CargoStatus[] = [
+  'registered',
+  'received_ereen',
+  'transporting',
+  'warehouse_processing',
+  'ready_warehouse',
+  'completed',
+];
 
 export default function CargoRegister() {
   const { toast } = useToast();
@@ -45,6 +57,7 @@ export default function CargoRegister() {
       height: '',
       shelf_location: '',
       notes: '',
+      status: 'ready_warehouse',
     },
   });
 
@@ -121,7 +134,7 @@ export default function CargoRegister() {
         price: price > 0 ? price : null,
         shelf_location: data.shelf_location || null,
         notes: data.notes || null,
-        status: 'registered',
+        status: data.status,
         registered_by: user?.id || null,
       });
 
@@ -281,30 +294,57 @@ export default function CargoRegister() {
                   />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="shelf_location"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Тавиурын байрлал</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Тавиур сонгох" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {shelfOptions.map((shelf) => (
-                            <SelectItem key={shelf} value={shelf}>
-                              {shelf}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Төлөв *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Төлөв сонгох" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {statusOptions.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {STATUS_LABELS[status]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="shelf_location"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Тавиурын байрлал</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Тавиур сонгох" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {shelfOptions.map((shelf) => (
+                              <SelectItem key={shelf} value={shelf}>
+                                {shelf}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
