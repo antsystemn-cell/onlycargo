@@ -37,8 +37,8 @@ export function useDeliveryZones() {
         return zone;
       }
     }
-    // Default to zone C if no polygon match
-    return zones.find(z => z.code === 'ZONE_C') || zones[zones.length - 1] || null;
+    // Default to last zone (usually outermost/cheapest) if no polygon match
+    return zones[zones.length - 1] || null;
   };
 
   return {
@@ -48,23 +48,49 @@ export function useDeliveryZones() {
   };
 }
 
+interface Point {
+  lat: number;
+  lng: number;
+}
+
 /**
  * Ray casting algorithm to check if point is inside polygon
+ * Supports both GeoJSON format and simple Point[] format
  */
 function isPointInPolygon(lat: number, lng: number, polygon: any): boolean {
-  if (!polygon?.coordinates?.[0]) return false;
-  
-  const coords = polygon.coordinates[0];
-  let inside = false;
-  
-  for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
-    const xi = coords[i][0], yi = coords[i][1];
-    const xj = coords[j][0], yj = coords[j][1];
+  // Handle simple Point[] format (array of {lat, lng})
+  if (Array.isArray(polygon) && polygon.length > 0 && typeof polygon[0].lat === 'number') {
+    const coords = polygon as Point[];
+    let inside = false;
     
-    if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
-      inside = !inside;
+    for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+      const xi = coords[i].lng, yi = coords[i].lat;
+      const xj = coords[j].lng, yj = coords[j].lat;
+      
+      if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
     }
+    
+    return inside;
   }
   
-  return inside;
+  // Handle GeoJSON format
+  if (polygon?.coordinates?.[0]) {
+    const coords = polygon.coordinates[0];
+    let inside = false;
+    
+    for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+      const xi = coords[i][0], yi = coords[i][1];
+      const xj = coords[j][0], yj = coords[j][1];
+      
+      if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    
+    return inside;
+  }
+  
+  return false;
 }

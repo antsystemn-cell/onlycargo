@@ -11,7 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatPrice } from '@/lib/priceCalculation';
+import { DeliveryZoneMapEditor } from '@/components/delivery/DeliveryZoneMapEditor';
 import type { DeliveryZone } from '@/types/cargo';
+
+interface Point {
+  lat: number;
+  lng: number;
+}
 
 export default function DeliveryZoneManagement() {
   const { toast } = useToast();
@@ -28,6 +34,8 @@ export default function DeliveryZoneManagement() {
   const [description, setDescription] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [sortOrder, setSortOrder] = useState('0');
+  const [polygon, setPolygon] = useState<Point[]>([]);
+  const [zoneColor, setZoneColor] = useState('#3b82f6');
 
   useEffect(() => {
     fetchZones();
@@ -58,6 +66,8 @@ export default function DeliveryZoneManagement() {
     setDescription('');
     setIsActive(true);
     setSortOrder('0');
+    setPolygon([]);
+    setZoneColor('#3b82f6');
   };
 
   const openEditDialog = (zone: DeliveryZone) => {
@@ -68,6 +78,9 @@ export default function DeliveryZoneManagement() {
     setDescription(zone.description || '');
     setIsActive(zone.is_active);
     setSortOrder(String(zone.sort_order));
+    // Parse polygon from JSON
+    const zonePolygon = zone.polygon as Point[] | null;
+    setPolygon(zonePolygon || []);
     setDialogOpen(true);
   };
 
@@ -86,6 +99,7 @@ export default function DeliveryZoneManagement() {
         description: description || null,
         is_active: isActive,
         sort_order: parseInt(sortOrder) || 0,
+        polygon: polygon.length >= 3 ? JSON.parse(JSON.stringify(polygon)) : null,
       };
 
       if (editingZone) {
@@ -180,6 +194,14 @@ export default function DeliveryZoneManagement() {
                 <Label>Эрэмбэ</Label>
                 <Input type="number" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} placeholder="0" />
               </div>
+              
+              {/* Map Editor for Zone Polygon */}
+              <DeliveryZoneMapEditor
+                polygon={polygon}
+                onPolygonChange={setPolygon}
+                zoneColor={zoneColor}
+              />
+              
               <div className="flex items-center justify-between">
                 <Label>Идэвхтэй</Label>
                 <Switch checked={isActive} onCheckedChange={setIsActive} />

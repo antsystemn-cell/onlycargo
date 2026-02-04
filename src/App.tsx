@@ -16,6 +16,8 @@ import MyCargo from "@/pages/MyCargo";
 import Calculator from "@/pages/Calculator";
 import ChinaAddress from "@/pages/ChinaAddress";
 import Profile from "@/pages/Profile";
+import WalletPage from "@/pages/Wallet";
+import ReferralPage from "@/pages/Referral";
 import Auth from "@/pages/Auth";
 import NotFound from "@/pages/NotFound";
 
@@ -31,6 +33,7 @@ import SiteSettings from "@/pages/admin/SiteSettings";
 import BranchManagement from "@/pages/admin/BranchManagement";
 import BannerManagement from "@/pages/admin/BannerManagement";
 import DeliveryZoneManagement from "@/pages/admin/DeliveryZoneManagement";
+import ReferralSettings from "@/pages/admin/ReferralSettings";
 
 // China Warehouse Pages
 import ChinaWarehouseRegister from "@/pages/china-warehouse/ChinaWarehouseRegister";
@@ -56,6 +59,8 @@ const App = () => (
               <Route path="/calculator" element={<Calculator />} />
               <Route path="/china-address" element={<ChinaAddress />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/wallet" element={<WalletPage />} />
+              <Route path="/referral" element={<ReferralPage />} />
             </Route>
 
             {/* Admin Routes with Sidebar */}
@@ -71,6 +76,7 @@ const App = () => (
               <Route path="branches" element={<BranchManagement />} />
               <Route path="banners" element={<BannerManagement />} />
               <Route path="delivery-zones" element={<DeliveryZoneManagement />} />
+              <Route path="referral-settings" element={<ReferralSettings />} />
             </Route>
 
             {/* China Warehouse Routes */}
