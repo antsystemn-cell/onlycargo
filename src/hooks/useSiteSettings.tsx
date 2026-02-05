@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { SiteSetting } from '@/types/cargo';
+import { DEFAULT_TIER_CONFIG, type TieredPricingConfig } from '@/lib/priceCalculation';
 
 interface ChinaWarehouseAddress {
   receiver: string;
@@ -28,6 +29,11 @@ interface Pricing {
   per_kg: number;
   per_cubic_meter: number;
   china_per_kg: number;
+  // Tiered pricing configuration
+  tier_weight_threshold: number;      // kg threshold (default: 1000)
+  tier_weight_price: number;          // price per kg above threshold (default: 830)
+  tier_volume_threshold: number;      // m³ threshold (default: 10)
+  tier_volume_price: number;          // price per m³ above threshold (default: 260000)
 }
 
 interface SiteSettingsContextType {
@@ -36,9 +42,20 @@ interface SiteSettingsContextType {
   homepageBanner: HomepageBanner;
   homepageWidgets: HomepageWidget[];
   pricing: Pricing;
+  tierConfig: TieredPricingConfig;
   isLoading: boolean;
   refresh: () => Promise<void>;
 }
+
+const defaultPricing: Pricing = {
+  per_kg: 8000,
+  per_cubic_meter: 312000,
+  china_per_kg: 2500,
+  tier_weight_threshold: DEFAULT_TIER_CONFIG.weightThreshold,
+  tier_weight_price: DEFAULT_TIER_CONFIG.weightTierPrice,
+  tier_volume_threshold: DEFAULT_TIER_CONFIG.volumeThreshold,
+  tier_volume_price: DEFAULT_TIER_CONFIG.volumeTierPrice,
+};
 
 const defaultSettings: SiteSettingsContextType = {
   logoUrl: '/placeholder.svg',
@@ -58,11 +75,8 @@ const defaultSettings: SiteSettingsContextType = {
     { id: 'tracking', title: 'Ачаа хайх', icon: 'search', enabled: true },
     { id: 'address', title: 'Хятад хаяг', icon: 'map-pin', enabled: true },
   ],
-  pricing: {
-    per_kg: 8000,
-    per_cubic_meter: 312000,
-    china_per_kg: 2500,
-  },
+  pricing: defaultPricing,
+  tierConfig: DEFAULT_TIER_CONFIG,
   isLoading: true,
   refresh: async () => {},
 };
@@ -76,6 +90,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     homepageBanner: defaultSettings.homepageBanner,
     homepageWidgets: defaultSettings.homepageWidgets,
     pricing: defaultSettings.pricing,
+    tierConfig: defaultSettings.tierConfig,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -90,12 +105,34 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
       if (data) {
         const settingsMap = new Map(data.map((s: SiteSetting) => [s.key, s.value]));
         
+        const pricingData = (settingsMap.get('pricing') as Pricing) || defaultPricing;
+        
+        // Merge with defaults to ensure tier fields exist
+        const mergedPricing: Pricing = {
+          per_kg: pricingData.per_kg ?? defaultPricing.per_kg,
+          per_cubic_meter: pricingData.per_cubic_meter ?? defaultPricing.per_cubic_meter,
+          china_per_kg: pricingData.china_per_kg ?? defaultPricing.china_per_kg,
+          tier_weight_threshold: pricingData.tier_weight_threshold ?? defaultPricing.tier_weight_threshold,
+          tier_weight_price: pricingData.tier_weight_price ?? defaultPricing.tier_weight_price,
+          tier_volume_threshold: pricingData.tier_volume_threshold ?? defaultPricing.tier_volume_threshold,
+          tier_volume_price: pricingData.tier_volume_price ?? defaultPricing.tier_volume_price,
+        };
+
+        // Build tier config from pricing
+        const tierConfig: TieredPricingConfig = {
+          weightThreshold: mergedPricing.tier_weight_threshold,
+          weightTierPrice: mergedPricing.tier_weight_price,
+          volumeThreshold: mergedPricing.tier_volume_threshold,
+          volumeTierPrice: mergedPricing.tier_volume_price,
+        };
+        
         setSettings({
           logoUrl: (settingsMap.get('logo_url') as string) || defaultSettings.logoUrl,
           chinaWarehouseAddress: (settingsMap.get('china_warehouse_address') as ChinaWarehouseAddress) || defaultSettings.chinaWarehouseAddress,
           homepageBanner: (settingsMap.get('homepage_banner') as HomepageBanner) || defaultSettings.homepageBanner,
           homepageWidgets: (settingsMap.get('homepage_widgets') as HomepageWidget[]) || defaultSettings.homepageWidgets,
-          pricing: (settingsMap.get('pricing') as Pricing) || defaultSettings.pricing,
+          pricing: mergedPricing,
+          tierConfig,
         });
       }
     } catch (error) {

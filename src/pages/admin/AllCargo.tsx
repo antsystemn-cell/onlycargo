@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
 import CargoStatusBadge from '@/components/cargo/CargoStatusBadge';
 import { InlineEditableCell } from '@/components/cargo/InlineEditableCell';
 import { InlineEditableDimensions } from '@/components/cargo/InlineEditableDimensions';
@@ -30,6 +31,7 @@ interface CargoStatusHistoryLog {
 export default function AllCargo() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { tierConfig } = useSiteSettings();
   const [cargo, setCargo] = useState<Cargo[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -147,6 +149,7 @@ export default function AllCargo() {
             height: dimensions.height,
             weightRate,
             volumeRate,
+            tierConfig,
           });
 
           updateData.price = priceResult.finalPrice;
@@ -205,6 +208,7 @@ export default function AllCargo() {
         height: dimensions.height,
         weightRate,
         volumeRate,
+        tierConfig,
       });
 
       const updateData = {
