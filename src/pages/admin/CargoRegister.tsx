@@ -11,9 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useSiteSettings } from '@/hooks/useSiteSettings';
 import BarcodeScanner from '@/components/barcode/BarcodeScanner';
 import { parseCargoError, logCargoOperation } from '@/lib/cargoErrors';
 import { STATUS_LABELS, type CargoStatus } from '@/types/cargo';
+import { calculateCargoPrice, formatPrice } from '@/lib/priceCalculation';
+import { TierPricingNotice } from '@/components/cargo/TierPricingNotice';
 
 const cargoSchema = z.object({
   track_number: z.string().min(1, 'Трак дугаар оруулна у|у'),
@@ -43,8 +46,17 @@ const statusOptions: CargoStatus[] = [
 export default function CargoRegister() {
   const { toast } = useToast();
   const { user, isAdmin } = useAuth();
+  const { pricing, tierConfig } = useSiteSettings();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registeredCount, setRegisteredCount] = useState(0);
+  const [calculatedPrice, setCalculatedPrice] = useState<{
+    weightPrice: number;
+    volumePrice: number;
+    finalPrice: number;
+    cubicMeters: number;
+    usedMethod: 'weight' | 'volume';
+    usedTierPricing: boolean;
+  } | null>(null);
 
   const form = useForm<CargoFormValues>({
     resolver: zodResolver(cargoSchema),
@@ -61,10 +73,27 @@ export default function CargoRegister() {
     },
   });
 
-  const calculatePrice = (weight: number, length: number, width: number, height: number) => {
-    const volumetricWeight = (length * width * height) / 5000;
-    const chargedWeight = Math.max(weight, volumetricWeight);
-    return Math.ceil(chargedWeight) * 8000; // 8000₮ per kg
+  const handleDimensionChange = () => {
+    const values = form.getValues();
+    const weight = parseFloat(values.weight || '0');
+    const length = parseFloat(values.length || '0');
+    const width = parseFloat(values.width || '0');
+    const height = parseFloat(values.height || '0');
+
+    if (weight > 0 || (length > 0 && width > 0 && height > 0)) {
+      const result = calculateCargoPrice({
+        weight,
+        length,
+        width,
+        height,
+        weightRate: pricing.per_kg,
+        volumeRate: pricing.per_cubic_meter,
+        tierConfig,
+      });
+      setCalculatedPrice(result);
+    } else {
+      setCalculatedPrice(null);
+    }
   };
 
   const onSubmit = async (data: CargoFormValues) => {
@@ -86,7 +115,17 @@ export default function CargoRegister() {
       const length = parseFloat(data.length || '0');
       const width = parseFloat(data.width || '0');
       const height = parseFloat(data.height || '0');
-      const price = calculatePrice(weight, length, width, height);
+      
+      // Use tiered pricing calculation
+      const priceResult = calculateCargoPrice({
+        weight,
+        length,
+        width,
+        height,
+        weightRate: pricing.per_kg,
+        volumeRate: pricing.per_cubic_meter,
+        tierConfig,
+      });
 
       // Check if cargo already exists
       const { data: existingCargo } = await supabase
@@ -131,7 +170,10 @@ export default function CargoRegister() {
         length: length || null,
         width: width || null,
         height: height || null,
-        price: price > 0 ? price : null,
+        price: priceResult.finalPrice > 0 ? priceResult.finalPrice : null,
+        kg_price: priceResult.weightPrice > 0 ? priceResult.weightPrice : null,
+        cubic_meter_price: priceResult.volumePrice > 0 ? priceResult.volumePrice : null,
+        total_cubic_meters: priceResult.cubicMeters > 0 ? priceResult.cubicMeters : null,
         shelf_location: data.shelf_location || null,
         notes: data.notes || null,
         status: data.status,
@@ -157,9 +199,9 @@ export default function CargoRegister() {
           .not('matched_cargo_id', 'is', null)
           .maybeSingle();
 
-        let successMessage = 'Ачаа амжилттай бүртгэгдлээ';
+        let successMessage = `Ачаа амжилттай бүртгэгдлээ - ${formatPrice(priceResult.finalPrice)}`;
         if (matchedPrereg) {
-          successMessage = 'Ачаа бүртгэгдэж, урьдчилсан бүртгэлтэй холбогдлоо';
+          successMessage = `Ачаа бүртгэгдэж, урьдчилсан бүртгэлтэй холбогдлоо - ${formatPrice(priceResult.finalPrice)}`;
         }
         
         toast({
@@ -168,6 +210,7 @@ export default function CargoRegister() {
         });
         setRegisteredCount((prev) => prev + 1);
         form.reset();
+        setCalculatedPrice(null);
       }
     } catch (error) {
       const parsedError = parseCargoError(error);
@@ -244,7 +287,16 @@ export default function CargoRegister() {
                       <FormItem>
                         <FormLabel>Жин (кг)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                          <Input 
+                            type="number" 
+                            step="0.01" 
+                            placeholder="0.00" 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              handleDimensionChange();
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -258,7 +310,16 @@ export default function CargoRegister() {
                       <FormItem>
                         <FormLabel>Урт (см)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.1" placeholder="0" {...field} />
+                          <Input 
+                            type="number" 
+                            step="0.1" 
+                            placeholder="0" 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              handleDimensionChange();
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -272,7 +333,16 @@ export default function CargoRegister() {
                       <FormItem>
                         <FormLabel>Өргөн (см)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.1" placeholder="0" {...field} />
+                          <Input 
+                            type="number" 
+                            step="0.1" 
+                            placeholder="0" 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              handleDimensionChange();
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -286,13 +356,52 @@ export default function CargoRegister() {
                       <FormItem>
                         <FormLabel>Өндөр (см)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.1" placeholder="0" {...field} />
+                          <Input 
+                            type="number" 
+                            step="0.1" 
+                            placeholder="0" 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              handleDimensionChange();
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
+
+                {/* Price calculation display */}
+                {calculatedPrice && (
+                  <Card className={`border-primary/50 ${calculatedPrice.usedTierPricing ? 'bg-primary/5' : 'bg-muted/30'}`}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Эзлэхүүн ({calculatedPrice.cubicMeters} м³):</span>
+                        <span>{calculatedPrice.volumePrice.toLocaleString()}₮</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Жин:</span>
+                        <span>{calculatedPrice.weightPrice.toLocaleString()}₮</span>
+                      </div>
+                      <div className="flex justify-between font-bold pt-2 border-t">
+                        <span className="flex items-center gap-2">
+                          Нийт:
+                          {calculatedPrice.usedTierPricing && (
+                            <span className="text-xs font-normal bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                              Хямдралтай
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-primary">{calculatedPrice.finalPrice.toLocaleString()}₮</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {calculatedPrice.usedMethod === 'volume' ? 'Эзлэхүүнээр' : 'Жингээр'} тооцоолсон
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
@@ -375,17 +484,21 @@ export default function CargoRegister() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Өнөөдөр бүртгэсэн</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-primary">{registeredCount}</div>
-              <p className="text-muted-foreground">ширхэг</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Өнөөдөр бүртгэсэн</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-primary">{registeredCount}</div>
+                <p className="text-muted-foreground">ширхэг</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <TierPricingNotice variant="compact" />
+        </div>
       </div>
     </div>
   );

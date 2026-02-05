@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { Calculator as CalcIcon, Scale, Ruler, Info } from 'lucide-react';
+import { Calculator as CalcIcon, Scale, Ruler, Info, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
-import { calculateChargedWeight, formatPrice } from '@/lib/priceCalculation';
+import { calculateTieredPrice, formatPrice } from '@/lib/priceCalculation';
+import { TierPricingNotice } from '@/components/cargo/TierPricingNotice';
 
 export default function Calculator() {
-  const { pricing, isLoading: settingsLoading } = useSiteSettings();
+  const { pricing, tierConfig, isLoading: settingsLoading } = useSiteSettings();
   const [weight, setWeight] = useState<string>('');
   const [length, setLength] = useState<string>('');
   const [width, setWidth] = useState<string>('');
@@ -19,6 +20,8 @@ export default function Calculator() {
     chargedWeight: number;
     price: number;
     usedMethod: 'weight' | 'volumetric';
+    usedTierPricing: boolean;
+    effectiveRate: number;
   } | null>(null);
 
   const PRICE_PER_KG = pricing.per_kg;
@@ -29,19 +32,17 @@ export default function Calculator() {
     const w = parseFloat(width) || 0;
     const h = parseFloat(height) || 0;
 
-    // Use the shared calculation function for consistency
-    const { chargedWeight, volumetricWeight } = calculateChargedWeight(actualWeight, l, w, h);
-    
-    // Determine which method was used (MAX logic)
-    const usedMethod = volumetricWeight > actualWeight ? 'volumetric' : 'weight';
-    const price = chargedWeight * PRICE_PER_KG;
+    // Use the tiered calculation function
+    const calcResult = calculateTieredPrice(actualWeight, l, w, h, PRICE_PER_KG, tierConfig);
 
     setResult({
       actualWeight,
-      volumetricWeight,
-      chargedWeight,
-      price,
-      usedMethod,
+      volumetricWeight: calcResult.volumetricWeight,
+      chargedWeight: calcResult.chargedWeight,
+      price: calcResult.price,
+      usedMethod: calcResult.usedMethod,
+      usedTierPricing: calcResult.usedTierPricing,
+      effectiveRate: calcResult.effectiveRate,
     });
   };
 
@@ -144,7 +145,15 @@ export default function Calculator() {
           {result && (
             <Card className="border-primary/50 animate-fade-in overflow-hidden">
               <CardHeader className="pb-2 bg-gradient-to-br from-primary/10 to-transparent">
-                <CardTitle className="text-base">Үр дүн</CardTitle>
+                <CardTitle className="text-base flex items-center justify-between">
+                  Үр дүн
+                  {result.usedTierPricing && (
+                    <span className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs font-medium">
+                      <TrendingDown className="h-3 w-3" />
+                      Хямдрал
+                    </span>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 pt-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -171,6 +180,11 @@ export default function Calculator() {
                       <p className="text-3xl font-bold text-primary">
                         {formatPrice(result.price)}
                       </p>
+                      {result.usedTierPricing && (
+                        <p className="text-xs text-primary">
+                          {formatPrice(result.effectiveRate)}/кг
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -183,14 +197,24 @@ export default function Calculator() {
                     <Info className="h-3 w-3 mt-0.5 shrink-0" />
                     <strong>Бодит жин, эзлэхүүний жингээс аль ИХ нь</strong> тооцогдоно
                   </p>
-                  <p className="text-xs text-muted-foreground flex items-start gap-1">
-                    <Info className="h-3 w-3 mt-0.5 shrink-0" />
-                    1 кг = {formatPrice(PRICE_PER_KG)}
-                  </p>
+                  {result.usedTierPricing ? (
+                    <p className="text-xs text-primary flex items-start gap-1">
+                      <TrendingDown className="h-3 w-3 mt-0.5 shrink-0" />
+                      Хямдралтай үнэ хэрэглэгдлээ ({formatPrice(result.effectiveRate)}/кг)
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground flex items-start gap-1">
+                      <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                      1 кг = {formatPrice(PRICE_PER_KG)}
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
           )}
+
+          {/* Tier pricing info */}
+          <TierPricingNotice variant="compact" />
         </div>
       </main>
     </div>

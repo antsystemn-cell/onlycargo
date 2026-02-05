@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Upload, Save, Image, FileText, MapPin, Calculator } from 'lucide-react';
+import { Settings, Upload, Save, Image, FileText, MapPin, Calculator, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
@@ -32,10 +33,16 @@ export default function SiteSettings() {
   const [addressRegion, setAddressRegion] = useState(chinaWarehouseAddress.region);
   const [addressDetail, setAddressDetail] = useState(chinaWarehouseAddress.address);
 
-  // Pricing
+  // Pricing - Normal rates
   const [pricePerKg, setPricePerKg] = useState(pricing.per_kg.toString());
   const [pricePerCubicMeter, setPricePerCubicMeter] = useState(pricing.per_cubic_meter.toString());
   const [chinaPricePerKg, setChinaPricePerKg] = useState(pricing.china_per_kg.toString());
+
+  // Pricing - Tiered rates
+  const [tierWeightThreshold, setTierWeightThreshold] = useState(pricing.tier_weight_threshold.toString());
+  const [tierWeightPrice, setTierWeightPrice] = useState(pricing.tier_weight_price.toString());
+  const [tierVolumeThreshold, setTierVolumeThreshold] = useState(pricing.tier_volume_threshold.toString());
+  const [tierVolumePrice, setTierVolumePrice] = useState(pricing.tier_volume_price.toString());
 
   useEffect(() => {
     setBannerEnabled(homepageBanner.enabled);
@@ -49,6 +56,10 @@ export default function SiteSettings() {
     setPricePerKg(pricing.per_kg.toString());
     setPricePerCubicMeter(pricing.per_cubic_meter.toString());
     setChinaPricePerKg(pricing.china_per_kg.toString());
+    setTierWeightThreshold(pricing.tier_weight_threshold.toString());
+    setTierWeightPrice(pricing.tier_weight_price.toString());
+    setTierVolumeThreshold(pricing.tier_volume_threshold.toString());
+    setTierVolumePrice(pricing.tier_volume_price.toString());
   }, [homepageBanner, chinaWarehouseAddress, pricing]);
 
   const handleLogoUpload = async () => {
@@ -134,6 +145,10 @@ export default function SiteSettings() {
             per_kg: parseFloat(pricePerKg) || 8000,
             per_cubic_meter: parseFloat(pricePerCubicMeter) || 312000,
             china_per_kg: parseFloat(chinaPricePerKg) || 2500,
+            tier_weight_threshold: parseFloat(tierWeightThreshold) || 1000,
+            tier_weight_price: parseFloat(tierWeightPrice) || 830,
+            tier_volume_threshold: parseFloat(tierVolumeThreshold) || 10,
+            tier_volume_price: parseFloat(tierVolumePrice) || 260000,
           }),
         },
       ];
@@ -302,13 +317,14 @@ export default function SiteSettings() {
           </CardContent>
         </Card>
 
-        {/* Pricing Settings */}
+        {/* Pricing Settings - Normal Rates */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Calculator className="h-4 w-4" />
-              Үнийн тохиргоо
+              Үнийн тохиргоо - Энгийн үнэ
             </CardTitle>
+            <CardDescription>Стандарт тээврийн үнэ</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -334,6 +350,103 @@ export default function SiteSettings() {
                 value={chinaPricePerKg}
                 onChange={(e) => setChinaPricePerKg(e.target.value)}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tiered Pricing Settings */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingDown className="h-4 w-4" />
+              Том ачааны хямдралтай үнэ (Tiered Pricing)
+            </CardTitle>
+            <CardDescription>
+              Тодорхой хэмжээнээс их ачаанд хямдралтай үнэ хэрэглэгдэнэ
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Weight Tier */}
+              <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
+                <h4 className="font-medium flex items-center gap-2">
+                  <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs">Жингээр</span>
+                  Жингийн хямдрал
+                </h4>
+                <div className="space-y-2">
+                  <Label>Босго (кг)</Label>
+                  <Input
+                    type="number"
+                    value={tierWeightThreshold}
+                    onChange={(e) => setTierWeightThreshold(e.target.value)}
+                    placeholder="1000"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Энэ кг-ээс дээш жинтэй ачаанд хямдралтай үнэ хэрэглэгдэнэ
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Хямдралтай үнэ (₮/кг)</Label>
+                  <Input
+                    type="number"
+                    value={tierWeightPrice}
+                    onChange={(e) => setTierWeightPrice(e.target.value)}
+                    placeholder="830"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Босгоноос дээш жинтэй бол 1кг = {tierWeightPrice}₮
+                  </p>
+                </div>
+              </div>
+
+              {/* Volume Tier */}
+              <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
+                <h4 className="font-medium flex items-center gap-2">
+                  <span className="bg-secondary/50 text-secondary-foreground px-2 py-0.5 rounded text-xs">Эзлэхүүнээр</span>
+                  Эзлэхүүний хямдрал
+                </h4>
+                <div className="space-y-2">
+                  <Label>Босго (м³)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={tierVolumeThreshold}
+                    onChange={(e) => setTierVolumeThreshold(e.target.value)}
+                    placeholder="10"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Энэ м³-ээс дээш эзлэхүүнтэй ачаанд хямдралтай үнэ хэрэглэгдэнэ
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Хямдралтай үнэ (₮/м³)</Label>
+                  <Input
+                    type="number"
+                    value={tierVolumePrice}
+                    onChange={(e) => setTierVolumePrice(e.target.value)}
+                    placeholder="260000"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Босгоноос дээш эзлэхүүнтэй бол 1м³ = {tierVolumePrice}₮
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+              <p className="font-medium mb-1">Жишээ тооцоолол:</p>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li>
+                  1200кг ачаа: 1200 × {tierWeightPrice}₮ = {(1200 * parseFloat(tierWeightPrice || '830')).toLocaleString()}₮ 
+                  <span className="text-muted-foreground ml-1">(энгийн үнээр {(1200 * parseFloat(pricePerKg || '8000')).toLocaleString()}₮ байх байсан)</span>
+                </li>
+                <li>
+                  15м³ ачаа: 15 × {tierVolumePrice}₮ = {(15 * parseFloat(tierVolumePrice || '260000')).toLocaleString()}₮
+                  <span className="text-muted-foreground ml-1">(энгийн үнээр {(15 * parseFloat(pricePerCubicMeter || '312000')).toLocaleString()}₮ байх байсан)</span>
+                </li>
+              </ul>
             </div>
           </CardContent>
         </Card>

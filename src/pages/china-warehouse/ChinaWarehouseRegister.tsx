@@ -13,6 +13,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import BarcodeScanner from '@/components/barcode/BarcodeScanner';
 import { parseCargoError, logCargoOperation } from '@/lib/cargoErrors';
+import { calculateCargoPrice, formatPrice } from '@/lib/priceCalculation';
+import { TierPricingNotice } from '@/components/cargo/TierPricingNotice';
 
 const cargoSchema = z.object({
   track_number: z.string().min(1, 'Трак дугаар оруулна уу'),
@@ -28,7 +30,7 @@ type CargoFormValues = z.infer<typeof cargoSchema>;
 export default function ChinaWarehouseRegister() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { pricing } = useSiteSettings();
+  const { pricing, tierConfig } = useSiteSettings();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registeredCount, setRegisteredCount] = useState(0);
   const [photos, setPhotos] = useState<File[]>([]);
@@ -37,6 +39,8 @@ export default function ChinaWarehouseRegister() {
     kgPrice: number;
     totalPrice: number;
     cubicMeters: number;
+    usedMethod: 'weight' | 'volume';
+    usedTierPricing: boolean;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,21 +57,24 @@ export default function ChinaWarehouseRegister() {
   });
 
   const calculatePrice = (weight: number, length: number, width: number, height: number) => {
-    // Convert cm to meters for cubic meter calculation
-    const cubicMeters = (length * width * height) / 1000000;
-    const cubicMeterPrice = cubicMeters * pricing.per_cubic_meter;
-    const kgPrice = weight * pricing.china_per_kg;
-    
-    // CRITICAL: Use MAX, not SUM - final price is the higher of the two
-    const totalPrice = Math.max(cubicMeterPrice, kgPrice);
-    const usedMethod = cubicMeterPrice > kgPrice ? 'volume' : 'weight';
+    // Use tiered pricing calculation
+    const result = calculateCargoPrice({
+      weight,
+      length,
+      width,
+      height,
+      weightRate: pricing.china_per_kg,
+      volumeRate: pricing.per_cubic_meter,
+      tierConfig,
+    });
 
     return {
-      cubicMeterPrice: Math.round(cubicMeterPrice),
-      kgPrice: Math.round(kgPrice),
-      totalPrice: Math.round(totalPrice),
-      cubicMeters: Math.round(cubicMeters * 10000) / 10000,
-      usedMethod,
+      cubicMeterPrice: result.volumePrice,
+      kgPrice: result.weightPrice,
+      totalPrice: result.finalPrice,
+      cubicMeters: result.cubicMeters,
+      usedMethod: result.usedMethod,
+      usedTierPricing: result.usedTierPricing,
     };
   };
 
@@ -234,9 +241,9 @@ export default function ChinaWarehouseRegister() {
           .not('matched_cargo_id', 'is', null)
           .maybeSingle();
 
-        let successMessage = `Ачаа бүртгэгдлээ - ${priceCalc.totalPrice.toLocaleString()}₮`;
+        let successMessage = `Ачаа бүртгэгдлээ - ${formatPrice(priceCalc.totalPrice)}`;
         if (matchedPrereg) {
-          successMessage = `Ачаа бүртгэгдэж, урьдчилсан бүртгэлтэй холбогдлоо - ${priceCalc.totalPrice.toLocaleString()}₮`;
+          successMessage = `Ачаа бүртгэгдэж, урьдчилсан бүртгэлтэй холбогдлоо - ${formatPrice(priceCalc.totalPrice)}`;
         }
 
         toast({
@@ -415,7 +422,7 @@ export default function ChinaWarehouseRegister() {
 
                 {/* Price calculation display */}
                 {calculatedPrice && (
-                  <Card className="border-primary/50 bg-primary/5">
+                  <Card className={`border-primary/50 ${calculatedPrice.usedTierPricing ? 'bg-primary/5' : 'bg-muted/30'}`}>
                     <CardContent className="p-4 space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Эзлэхүүн ({calculatedPrice.cubicMeters} м³):</span>
@@ -426,9 +433,19 @@ export default function ChinaWarehouseRegister() {
                         <span>{calculatedPrice.kgPrice.toLocaleString()}₮</span>
                       </div>
                       <div className="flex justify-between font-bold pt-2 border-t">
-                        <span>Нийт:</span>
+                        <span className="flex items-center gap-2">
+                          Нийт:
+                          {calculatedPrice.usedTierPricing && (
+                            <span className="text-xs font-normal bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                              Хямдралтай
+                            </span>
+                          )}
+                        </span>
                         <span className="text-primary">{calculatedPrice.totalPrice.toLocaleString()}₮</span>
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        {calculatedPrice.usedMethod === 'volume' ? 'Эзлэхүүнээр' : 'Жингээр'} тооцоолсон
+                      </p>
                     </CardContent>
                   </Card>
                 )}
@@ -460,7 +477,7 @@ export default function ChinaWarehouseRegister() {
                         className="w-20 h-20 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary hover:text-primary transition-colors"
                       >
                         <Camera className="h-5 w-5" />
-                        <span className="text-[10px]">Зураг</span>
+                        <span className="text-xs">Нэмэх</span>
                       </button>
                     )}
                     <input
@@ -489,17 +506,21 @@ export default function ChinaWarehouseRegister() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Өнөөдөр бүртгэсэн</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-primary">{registeredCount}</div>
-              <p className="text-muted-foreground">ширхэг</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Өнөөдөр бүртгэсэн</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-primary">{registeredCount}</div>
+                <p className="text-muted-foreground">ширхэг</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <TierPricingNotice variant="compact" />
+        </div>
       </div>
     </div>
   );
