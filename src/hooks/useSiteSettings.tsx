@@ -36,13 +36,25 @@ interface Pricing {
   tier_volume_price: number;          // price per m³ above threshold (default: 260000)
 }
 
+interface PageSeo {
+  title: string;
+  description: string;
+  keywords: string;
+  og_title: string;
+  og_description: string;
+}
+
+type SeoSettingsMap = Record<string, PageSeo>;
+
 interface SiteSettingsContextType {
   logoUrl: string;
+  faviconUrl: string;
   chinaWarehouseAddress: ChinaWarehouseAddress;
   homepageBanner: HomepageBanner;
   homepageWidgets: HomepageWidget[];
   pricing: Pricing;
   tierConfig: TieredPricingConfig;
+  seoSettings: SeoSettingsMap;
   isLoading: boolean;
   refresh: () => Promise<void>;
 }
@@ -59,6 +71,7 @@ const defaultPricing: Pricing = {
 
 const defaultSettings: SiteSettingsContextType = {
   logoUrl: '/placeholder.svg',
+  faviconUrl: '/favicon.ico',
   chinaWarehouseAddress: {
     receiver: '唯一OnlyCargo',
     phone: '13694788211',
@@ -77,6 +90,7 @@ const defaultSettings: SiteSettingsContextType = {
   ],
   pricing: defaultPricing,
   tierConfig: DEFAULT_TIER_CONFIG,
+  seoSettings: {},
   isLoading: true,
   refresh: async () => {},
 };
@@ -86,11 +100,13 @@ const SiteSettingsContext = createContext<SiteSettingsContextType>(defaultSettin
 export function SiteSettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Omit<SiteSettingsContextType, 'refresh' | 'isLoading'>>({
     logoUrl: defaultSettings.logoUrl,
+    faviconUrl: defaultSettings.faviconUrl,
     chinaWarehouseAddress: defaultSettings.chinaWarehouseAddress,
     homepageBanner: defaultSettings.homepageBanner,
     homepageWidgets: defaultSettings.homepageWidgets,
     pricing: defaultSettings.pricing,
     tierConfig: defaultSettings.tierConfig,
+    seoSettings: defaultSettings.seoSettings,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -128,11 +144,13 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         
         setSettings({
           logoUrl: (settingsMap.get('logo_url') as string) || defaultSettings.logoUrl,
+          faviconUrl: (settingsMap.get('favicon_url') as string) || defaultSettings.faviconUrl,
           chinaWarehouseAddress: (settingsMap.get('china_warehouse_address') as ChinaWarehouseAddress) || defaultSettings.chinaWarehouseAddress,
           homepageBanner: (settingsMap.get('homepage_banner') as HomepageBanner) || defaultSettings.homepageBanner,
           homepageWidgets: (settingsMap.get('homepage_widgets') as HomepageWidget[]) || defaultSettings.homepageWidgets,
           pricing: mergedPricing,
           tierConfig,
+          seoSettings: (settingsMap.get('seo_settings') as SeoSettingsMap) || defaultSettings.seoSettings,
         });
       }
     } catch (error) {

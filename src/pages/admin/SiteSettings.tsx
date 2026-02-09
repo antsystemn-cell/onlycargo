@@ -10,10 +10,12 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
+import { FaviconSettings } from '@/components/admin/FaviconSettings';
+import { SeoSettings, type SeoSettingsData } from '@/components/admin/SeoSettings';
 
 export default function SiteSettings() {
   const { toast } = useToast();
-  const { logoUrl, chinaWarehouseAddress, homepageBanner, pricing, refresh } = useSiteSettings();
+  const { logoUrl, faviconUrl, chinaWarehouseAddress, homepageBanner, pricing, seoSettings, refresh } = useSiteSettings();
   const [isSaving, setIsSaving] = useState(false);
 
   // Logo
@@ -44,6 +46,12 @@ export default function SiteSettings() {
   const [tierVolumeThreshold, setTierVolumeThreshold] = useState(pricing.tier_volume_threshold.toString());
   const [tierVolumePrice, setTierVolumePrice] = useState(pricing.tier_volume_price.toString());
 
+  // Favicon
+  const [currentFaviconUrl, setCurrentFaviconUrl] = useState(faviconUrl);
+
+  // SEO
+  const [currentSeoSettings, setCurrentSeoSettings] = useState<SeoSettingsData>(seoSettings || {});
+
   useEffect(() => {
     setBannerEnabled(homepageBanner.enabled);
     setBannerTitle(homepageBanner.title);
@@ -60,7 +68,9 @@ export default function SiteSettings() {
     setTierWeightPrice(pricing.tier_weight_price.toString());
     setTierVolumeThreshold(pricing.tier_volume_threshold.toString());
     setTierVolumePrice(pricing.tier_volume_price.toString());
-  }, [homepageBanner, chinaWarehouseAddress, pricing]);
+    setCurrentFaviconUrl(faviconUrl);
+    setCurrentSeoSettings(seoSettings || {});
+  }, [homepageBanner, chinaWarehouseAddress, pricing, faviconUrl, seoSettings]);
 
   const handleLogoUpload = async () => {
     if (!logoFile) return null;
@@ -121,6 +131,7 @@ export default function SiteSettings() {
 
       const updates = [
         { key: 'logo_url', value: JSON.stringify(newLogoUrl) },
+        { key: 'favicon_url', value: JSON.stringify(currentFaviconUrl) },
         {
           key: 'homepage_banner',
           value: JSON.stringify({
@@ -151,6 +162,7 @@ export default function SiteSettings() {
             tier_volume_price: parseFloat(tierVolumePrice) || 260000,
           }),
         },
+        { key: 'seo_settings', value: JSON.stringify(currentSeoSettings) },
       ];
 
       for (const update of updates) {
@@ -193,6 +205,9 @@ export default function SiteSettings() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Favicon Settings */}
+        <FaviconSettings faviconUrl={currentFaviconUrl} onFaviconChange={setCurrentFaviconUrl} />
+
         {/* Logo Settings */}
         <Card>
           <CardHeader>
@@ -450,6 +465,9 @@ export default function SiteSettings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* SEO Settings */}
+        <SeoSettings seoSettings={currentSeoSettings} onSeoChange={setCurrentSeoSettings} />
       </div>
     </div>
   );
