@@ -41,12 +41,30 @@ export default function ChinaAddress() {
   const addressPrefix = branch?.china_address_prefix || 'ONLY';
   const addressText = branch?.china_address_text || null;
 
-  // If branch has custom china_address_text, parse it; otherwise use site settings
+  // Parse china_address_text from branch into structured fields
+  const parseChinaAddressText = (text: string) => {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const parsed: Record<string, string> = {};
+    for (const line of lines) {
+      const colonIdx = line.indexOf(':');
+      if (colonIdx === -1) continue;
+      const key = line.slice(0, colonIdx).trim();
+      const val = line.slice(colonIdx + 1).trim();
+      if (key.includes('收货人')) parsed.receiver = val;
+      else if (key.includes('手机号码')) parsed.phone = val;
+      else if (key.includes('所在地区')) parsed.region = val;
+      else if (key.includes('详细地址')) parsed.address = val;
+    }
+    return parsed;
+  };
+
+  // If branch has custom china_address_text, use it; otherwise use site settings
+  const branchParsed = addressText ? parseChinaAddressText(addressText) : null;
   const displayAddress = {
-    receiver: chinaWarehouseAddress.receiver,
-    phone: chinaWarehouseAddress.phone,
-    region: chinaWarehouseAddress.region,
-    address: chinaWarehouseAddress.address,
+    receiver: branchParsed?.receiver || chinaWarehouseAddress.receiver,
+    phone: branchParsed?.phone || chinaWarehouseAddress.phone,
+    region: branchParsed?.region || chinaWarehouseAddress.region,
+    address: branchParsed?.address || chinaWarehouseAddress.address,
   };
 
   const fullAddress = `收货人: ${displayAddress.receiver}
