@@ -1,22 +1,22 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { User, MapPin, Plus, Edit2, Trash2, History, LogOut, Wallet, Users } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/hooks/useAuth';
-import { useWallet } from '@/hooks/useWallet';
-import { useReferral } from '@/hooks/useReferral';
-import { supabase } from '@/integrations/supabase/client';
-import { signOut } from '@/lib/auth';
-import { useToast } from '@/hooks/use-toast';
-import { formatPrice } from '@/lib/priceCalculation';
-import CargoCard from '@/components/cargo/CargoCard';
-import BranchSelector from '@/components/profile/BranchSelector';
-import type { DeliveryAddress, Cargo, CargoStatus } from '@/types/cargo';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { User, MapPin, Plus, Edit2, Trash2, History, LogOut, Wallet, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/hooks/useAuth";
+import { useWallet } from "@/hooks/useWallet";
+import { useReferral } from "@/hooks/useReferral";
+import { supabase } from "@/integrations/supabase/client";
+import { signOut } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
+import { formatPrice } from "@/lib/priceCalculation";
+import CargoCard from "@/components/cargo/CargoCard";
+import BranchSelector from "@/components/profile/BranchSelector";
+import type { DeliveryAddress, Cargo, CargoStatus } from "@/types/cargo";
 
 export default function Profile() {
   const { user, profile, isLoading: authLoading, refreshProfile } = useAuth();
@@ -30,7 +30,7 @@ export default function Profile() {
   const [showHistory, setShowHistory] = useState(false);
 
   // Profile edit state
-  const [fullName, setFullName] = useState('');
+  const [fullName, setFullName] = useState("");
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -38,16 +38,16 @@ export default function Profile() {
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<DeliveryAddress | null>(null);
   const [addressForm, setAddressForm] = useState({
-    label: '',
-    address_line: '',
-    city: 'Улаанбаатар',
-    district: '',
-    phone: '',
+    label: "",
+    address_line: "",
+    city: "Улаанбаатар",
+    district: "",
+    phone: "",
   });
 
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate('/auth');
+      navigate("/auth");
       return;
     }
 
@@ -58,7 +58,7 @@ export default function Profile() {
 
   useEffect(() => {
     if (profile) {
-      setFullName(profile.full_name || '');
+      setFullName(profile.full_name || "");
     }
   }, [profile]);
 
@@ -67,9 +67,9 @@ export default function Profile() {
     try {
       // Fetch addresses
       const { data: addressData } = await supabase
-        .from('delivery_addresses')
-        .select('*')
-        .order('is_default', { ascending: false });
+        .from("delivery_addresses")
+        .select("*")
+        .order("is_default", { ascending: false });
 
       if (addressData) {
         setAddresses(addressData as DeliveryAddress[]);
@@ -78,11 +78,11 @@ export default function Profile() {
       // Fetch cargo history
       if (profile?.phone) {
         const { data: historyData } = await supabase
-          .from('cargo')
-          .select('*')
-          .eq('phone_number', profile.phone)
-          .eq('status', 'completed')
-          .order('updated_at', { ascending: false })
+          .from("cargo")
+          .select("*")
+          .eq("phone_number", profile.phone)
+          .eq("status", "completed")
+          .order("updated_at", { ascending: false })
           .limit(20);
 
         if (historyData) {
@@ -94,7 +94,7 @@ export default function Profile() {
         }
       }
     } catch (error) {
-      console.error('Failed to fetch data:', error);
+      console.error("Failed to fetch data:", error);
     } finally {
       setIsLoading(false);
     }
@@ -102,21 +102,18 @@ export default function Profile() {
 
   const handleUpdateProfile = async () => {
     if (!user) return;
-    
+
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ full_name: fullName })
-        .eq('id', user.id);
+      const { error } = await supabase.from("profiles").update({ full_name: fullName }).eq("id", user.id);
 
       if (error) throw error;
 
       await refreshProfile();
       setIsEditingProfile(false);
-      toast({ title: 'Амжилттай', description: 'Профайл шинэчлэгдлээ' });
+      toast({ title: "Амжилттай", description: "Профайл шинэчлэгдлээ" });
     } catch (error) {
-      toast({ title: 'Алдаа', description: 'Хадгалж чадсангүй', variant: 'destructive' });
+      toast({ title: "Алдаа", description: "Хадгалж чадсангүй", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -128,16 +125,11 @@ export default function Profile() {
     setIsSaving(true);
     try {
       if (editingAddress) {
-        const { error } = await supabase
-          .from('delivery_addresses')
-          .update(addressForm)
-          .eq('id', editingAddress.id);
+        const { error } = await supabase.from("delivery_addresses").update(addressForm).eq("id", editingAddress.id);
 
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('delivery_addresses')
-          .insert({ ...addressForm, user_id: user.id });
+        const { error } = await supabase.from("delivery_addresses").insert({ ...addressForm, user_id: user.id });
 
         if (error) throw error;
       }
@@ -145,9 +137,9 @@ export default function Profile() {
       await fetchData();
       setAddressDialogOpen(false);
       resetAddressForm();
-      toast({ title: 'Амжилттай', description: 'Хаяг хадгалагдлаа' });
+      toast({ title: "Амжилттай", description: "Хаяг хадгалагдлаа" });
     } catch (error) {
-      toast({ title: 'Алдаа', description: 'Хадгалж чадсангүй', variant: 'destructive' });
+      toast({ title: "Алдаа", description: "Хадгалж чадсангүй", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -155,28 +147,25 @@ export default function Profile() {
 
   const handleDeleteAddress = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('delivery_addresses')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from("delivery_addresses").delete().eq("id", id);
 
       if (error) throw error;
 
       setAddresses((prev) => prev.filter((a) => a.id !== id));
-      toast({ title: 'Устгагдлаа' });
+      toast({ title: "Устгагдлаа" });
     } catch (error) {
-      toast({ title: 'Алдаа', description: 'Устгаж чадсангүй', variant: 'destructive' });
+      toast({ title: "Алдаа", description: "Устгаж чадсангүй", variant: "destructive" });
     }
   };
 
   const resetAddressForm = () => {
     setEditingAddress(null);
     setAddressForm({
-      label: '',
-      address_line: '',
-      city: 'Улаанбаатар',
-      district: '',
-      phone: '',
+      label: "",
+      address_line: "",
+      city: "Улаанбаатар",
+      district: "",
+      phone: "",
     });
   };
 
@@ -186,15 +175,15 @@ export default function Profile() {
       label: address.label,
       address_line: address.address_line,
       city: address.city,
-      district: address.district || '',
-      phone: address.phone || '',
+      district: address.district || "",
+      phone: address.phone || "",
     });
     setAddressDialogOpen(true);
   };
 
   const handleLogout = async () => {
     await signOut();
-    navigate('/');
+    navigate("/");
   };
 
   if (authLoading || isLoading) {
@@ -225,9 +214,9 @@ export default function Profile() {
         <div className="mx-auto max-w-md space-y-6">
           {/* Wallet & Referral Quick Cards */}
           <div className="grid grid-cols-2 gap-3">
-            <Card 
+            <Card
               className="cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => navigate('/wallet')}
+              onClick={() => navigate("/wallet")}
             >
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3">
@@ -235,16 +224,16 @@ export default function Profile() {
                     <Wallet className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Түрийвч</p>
+                    <p className="text-xs text-muted-foreground">Хэтэвч</p>
                     <p className="font-bold text-primary">{formatPrice(balance)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
-            <Card 
+
+            <Card
               className="cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => navigate('/referral')}
+              onClick={() => navigate("/referral")}
             >
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3">
@@ -267,7 +256,7 @@ export default function Profile() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Утасны дугаар</Label>
-                <Input value={profile?.phone || ''} disabled />
+                <Input value={profile?.phone || ""} disabled />
               </div>
               <div className="space-y-2">
                 <Label>Нэр</Label>
@@ -287,7 +276,7 @@ export default function Profile() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <Input value={fullName || 'Оруулаагүй'} disabled />
+                    <Input value={fullName || "Оруулаагүй"} disabled />
                     <Button variant="outline" size="icon" onClick={() => setIsEditingProfile(true)}>
                       <Edit2 className="h-4 w-4" />
                     </Button>
@@ -298,12 +287,7 @@ export default function Profile() {
               <Separator className="my-4" />
 
               {/* Branch Selection */}
-              {profile && (
-                <BranchSelector 
-                  profile={profile} 
-                  onBranchChange={refreshProfile} 
-                />
-              )}
+              {profile && <BranchSelector profile={profile} onBranchChange={refreshProfile} />}
             </CardContent>
           </Card>
 
@@ -323,9 +307,7 @@ export default function Profile() {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>
-                      {editingAddress ? 'Хаяг засах' : 'Шинэ хаяг нэмэх'}
-                    </DialogTitle>
+                    <DialogTitle>{editingAddress ? "Хаяг засах" : "Шинэ хаяг нэмэх"}</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
@@ -374,7 +356,7 @@ export default function Profile() {
                       onClick={handleSaveAddress}
                       disabled={!addressForm.label || !addressForm.address_line || isSaving}
                     >
-                      {isSaving ? 'Хадгалж байна...' : 'Хадгалах'}
+                      {isSaving ? "Хадгалж байна..." : "Хадгалах"}
                     </Button>
                   </div>
                 </DialogContent>
@@ -382,26 +364,17 @@ export default function Profile() {
             </CardHeader>
             <CardContent>
               {addresses.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-4">
-                  Хаяг оруулаагүй байна
-                </p>
+                <p className="text-center text-sm text-muted-foreground py-4">Хаяг оруулаагүй байна</p>
               ) : (
                 <div className="space-y-3">
                   {addresses.map((address) => (
-                    <div
-                      key={address.id}
-                      className="flex items-start justify-between rounded-lg border p-3"
-                    >
+                    <div key={address.id} className="flex items-start justify-between rounded-lg border p-3">
                       <div className="flex items-start gap-2">
                         <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
                         <div>
                           <p className="font-medium text-sm">{address.label}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {address.address_line}
-                          </p>
-                          {address.phone && (
-                            <p className="text-xs text-muted-foreground">{address.phone}</p>
-                          )}
+                          <p className="text-xs text-muted-foreground">{address.address_line}</p>
+                          {address.phone && <p className="text-xs text-muted-foreground">{address.phone}</p>}
                         </div>
                       </div>
                       <div className="flex gap-1">
@@ -431,10 +404,7 @@ export default function Profile() {
 
           {/* Cargo History */}
           <Card>
-            <CardHeader
-              className="cursor-pointer"
-              onClick={() => setShowHistory(!showHistory)}
-            >
+            <CardHeader className="cursor-pointer" onClick={() => setShowHistory(!showHistory)}>
               <CardTitle className="flex items-center gap-2 text-base">
                 <History className="h-4 w-4" />
                 Ачааны түүх ({cargoHistory.length})
@@ -444,9 +414,7 @@ export default function Profile() {
             {showHistory && (
               <CardContent>
                 {cargoHistory.length === 0 ? (
-                  <p className="text-center text-sm text-muted-foreground py-4">
-                    Түүх байхгүй
-                  </p>
+                  <p className="text-center text-sm text-muted-foreground py-4">Түүх байхгүй</p>
                 ) : (
                   <div className="space-y-3">
                     {cargoHistory.map((cargo) => (
