@@ -37,7 +37,7 @@ export default function WalletPage() {
           </Button>
           <div className="flex items-center gap-2">
             <WalletIcon className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">Миний түрийвч</h1>
+            <h1 className="text-lg font-semibold">Миний хэтэвч</h1>
           </div>
         </div>
       </header>
