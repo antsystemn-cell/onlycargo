@@ -71,41 +71,59 @@ async function getStorepayToken(): Promise<string> {
 async function checkCredit(phone: string) {
   const token = await getStorepayToken();
 
-  const resp = await fetch(`${STOREPAY_BASE}/lend-merchant/merchant/loan/check`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ mobileNumber: phone }),
-  });
+  const checkUrl = `${STOREPAY_BASE}/lend-merchant/merchant/loan/check`;
+  console.log("[Storepay] Credit check URL:", checkUrl, "phone:", phone);
 
-  if (!resp.ok) {
-    const errText = await resp.text();
-    console.error("[Storepay] Credit check error:", resp.status, errText);
+  const doCheck = async (tkn: string) => {
+    const resp = await fetch(checkUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${tkn}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ mobileNumber: phone }),
+    });
 
-    if (resp.status === 401) {
-      // Token expired, clear cache and retry once
-      cachedToken = null;
-      tokenExpiresAt = 0;
-      const newToken = await getStorepayToken();
-      const retryResp = await fetch(`${STOREPAY_BASE}/lend-merchant/merchant/loan/check`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${newToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ mobileNumber: phone }),
-      });
-      if (!retryResp.ok) {
-        throw new Error("Storepay credit check failed");
+    const respText = await resp.text();
+    console.log("[Storepay] Credit check response:", resp.status, respText);
+
+    if (!resp.ok) {
+      if (resp.status === 401) {
+        return { retry: true, status: resp.status, body: respText };
       }
-      return await retryResp.json();
+      // 404 or other errors - phone not registered
+      if (resp.status === 404) {
+        return { retry: false, status: resp.status, body: respText, notFound: true };
+      }
+      throw new Error(`Storepay credit check failed (${resp.status}): ${respText}`);
     }
-    throw new Error("Storepay credit check failed");
+
+    try {
+      return { retry: false, data: JSON.parse(respText) };
+    } catch {
+      return { retry: false, data: { eligible: false } };
+    }
+  };
+
+  let result = await doCheck(token);
+
+  // Retry once on 401
+  if (result.retry) {
+    cachedToken = null;
+    tokenExpiresAt = 0;
+    const newToken = await getStorepayToken();
+    result = await doCheck(newToken);
+    if (result.retry) {
+      throw new Error("Storepay auth failed after retry");
+    }
   }
 
-  return await resp.json();
+  // If 404, user not registered
+  if (result.notFound) {
+    return { eligible: false, notRegistered: true };
+  }
+
+  return result.data;
 }
 
 async function createLoan(
@@ -249,6 +267,15 @@ serve(async (req) => {
         const result = await checkCredit(phone);
         console.log("[Storepay] Credit check result:", JSON.stringify(result));
 
+        if (result?.notRegistered) {
+          return json(200, {
+            success: true,
+            eligible: false,
+            limit: 0,
+            error: "Энэ дугаар Storepay-д бүртгэлгүй байна",
+          });
+        }
+
         return json(200, {
           success: true,
           eligible: result?.eligible === true || result?.isActive === true,
@@ -261,7 +288,7 @@ serve(async (req) => {
           success: true,
           eligible: false,
           limit: 0,
-          error: "Storepay-д бүртгэлгүй эсвэл зээлийн эрх хүрэлцэхгүй",
+          error: err instanceof Error ? err.message : "Storepay шалгахад алдаа гарлаа",
         });
       }
     }
