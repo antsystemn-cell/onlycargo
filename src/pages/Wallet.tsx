@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Wallet as WalletIcon, Plus, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/hooks/useAuth';
-import { useWallet } from '@/hooks/useWallet';
-import { formatPrice } from '@/lib/priceCalculation';
-import { WalletTransactionHistory } from '@/components/wallet/WalletTransactionHistory';
-import { WalletTopupModal } from '@/components/wallet/WalletTopupModal';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Wallet as WalletIcon, Plus, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
+import { useWallet } from "@/hooks/useWallet";
+import { formatPrice } from "@/lib/priceCalculation";
+import { WalletTransactionHistory } from "@/components/wallet/WalletTransactionHistory";
+import { WalletTopupModal } from "@/components/wallet/WalletTopupModal";
 
 export default function WalletPage() {
   const navigate = useNavigate();
@@ -24,7 +24,7 @@ export default function WalletPage() {
   }
 
   if (!user) {
-    navigate('/auth');
+    navigate("/auth");
     return null;
   }
 
@@ -53,14 +53,9 @@ export default function WalletPage() {
               </div>
 
               <div className="mt-6">
-                <Button 
-                  variant="secondary" 
-                  className="w-full" 
-                  size="lg"
-                  onClick={() => setShowTopup(true)}
-                >
+                <Button variant="secondary" className="w-full" size="lg" onClick={() => setShowTopup(true)}>
                   <Plus className="h-5 w-5 mr-2" />
-                  QPay-ээр цэнэглэх
+                  Дансаа цэнэглэх
                 </Button>
               </div>
             </CardContent>
