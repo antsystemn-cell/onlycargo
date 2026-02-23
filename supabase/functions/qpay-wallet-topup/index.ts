@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // QPay API v2 endpoints (production)
@@ -40,16 +41,19 @@ interface QPayInvoiceResponse {
 /**
  * Get QPay access token using Basic Auth
  */
-async function getQPayToken(username: string, password: string): Promise<{ access_token: string; refresh_token: string }> {
+async function getQPayToken(
+  username: string,
+  password: string,
+): Promise<{ access_token: string; refresh_token: string }> {
   console.log("[QPay Wallet] Requesting access token...");
-  
+
   const credentials = btoa(`${username}:${password}`);
-  
+
   const response = await fetch(`${QPAY_BASE_URL}/auth/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Basic ${credentials}`,
+      Authorization: `Basic ${credentials}`,
     },
   });
 
@@ -60,11 +64,11 @@ async function getQPayToken(username: string, password: string): Promise<{ acces
   }
 
   const data: QPayTokenResponse = await response.json();
-  
+
   if (!data.access_token) {
     throw new Error("QPay returned empty access token");
   }
-  
+
   return {
     access_token: data.access_token,
     refresh_token: data.refresh_token,
@@ -76,12 +80,12 @@ async function getQPayToken(username: string, password: string): Promise<{ acces
  */
 async function refreshQPayToken(refreshToken: string): Promise<{ access_token: string; refresh_token: string }> {
   console.log("[QPay Wallet] Refreshing access token...");
-  
+
   const response = await fetch(`${QPAY_BASE_URL}/auth/refresh`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${refreshToken}`,
+      Authorization: `Bearer ${refreshToken}`,
     },
   });
 
@@ -90,7 +94,7 @@ async function refreshQPayToken(refreshToken: string): Promise<{ access_token: s
   }
 
   const data: QPayTokenResponse = await response.json();
-  
+
   return {
     access_token: data.access_token,
     refresh_token: data.refresh_token,
@@ -107,10 +111,10 @@ async function createQPayInvoice(
   invoiceReceiverCode: string,
   description: string,
   amount: number,
-  callbackUrl: string
+  callbackUrl: string,
 ): Promise<QPayInvoiceResponse> {
   console.log("[QPay Wallet] Creating invoice:", { senderInvoiceNo, amount });
-  
+
   const requestBody = {
     invoice_code: invoiceCode,
     sender_invoice_no: senderInvoiceNo,
@@ -124,7 +128,7 @@ async function createQPayInvoice(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(requestBody),
   });
@@ -141,7 +145,7 @@ async function createQPayInvoice(
 
   const data: QPayInvoiceResponse = await response.json();
   console.log("[QPay Wallet] Invoice created:", data.invoice_id);
-  
+
   return data;
 }
 
@@ -158,17 +162,18 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
+
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error("Supabase configuration missing");
     }
-    
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify user
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
 
     if (authError || !user) {
       throw new Error("Unauthorized");
@@ -179,7 +184,7 @@ serve(async (req) => {
     // Parse request
     const { amount }: WalletTopupRequest = await req.json();
 
-    if (!amount || typeof amount !== 'number' || amount < 1000) {
+    if (!amount || typeof amount !== "number" || amount < 1000) {
       throw new Error("Invalid amount: minimum 1000₮");
     }
 
@@ -200,7 +205,7 @@ serve(async (req) => {
         .insert({ user_id: user.id, balance: 0 })
         .select()
         .single();
-      
+
       if (createError) throw createError;
       wallet = newWallet;
     }
@@ -227,7 +232,8 @@ serve(async (req) => {
       console.log("[Wallet Topup] Demo mode - no QPay credentials");
       isDemoMode = true;
       qpayInvoiceId = `DEMO-WALLET-${Date.now()}`;
-      qrImage = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmZmYiLz48cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0iIzMzMyIvPjxyZWN0IHg9IjE0MCIgeT0iMjAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0iIzMzMyIvPjxyZWN0IHg9IjIwIiB5PSIxNDAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTUlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjY2Ij5EZW1vIFdhbGxldDwvdGV4dD48dGV4dCB4PSI1MCUiIHk9IjY1JSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzk5OSI+VG9wLXVwIFFSPC90ZXh0Pjwvc3ZnPg==";
+      qrImage =
+        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmZmYiLz48cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0iIzMzMyIvPjxyZWN0IHg9IjE0MCIgeT0iMjAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0iIzMzMyIvPjxyZWN0IHg9IjIwIiB5PSIxNDAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTUlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjY2Ij5EZW1vIFdhbGxldDwvdGV4dD48dGV4dCB4PSI1MCUiIHk9IjY1JSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzk5OSI+VG9wLXVwIFFSPC90ZXh0Pjwvc3ZnPg==";
       qrText = `Demo Wallet Topup - ${amount}₮`;
       bankUrls = [
         { name: "Khan Bank", description: "Demo", logo: "", link: "#demo" },
@@ -239,7 +245,7 @@ serve(async (req) => {
       let accessToken = tokens.access_token;
       let refreshToken = tokens.refresh_token;
 
-      const description = `OnlyCargo Түрийвч цэнэглэлт - ${amount.toLocaleString()}₮`;
+      const description = `OnlyCargo Хэтэвч цэнэглэлт - ${amount.toLocaleString()}₮`;
 
       let qpayInvoice: QPayInvoiceResponse;
       try {
@@ -250,13 +256,13 @@ serve(async (req) => {
           user.id.substring(0, 20),
           description.substring(0, 255),
           amount,
-          callbackUrl
+          callbackUrl,
         );
       } catch (error) {
         if (error instanceof Error && error.message === "TOKEN_EXPIRED") {
           const refreshedTokens = await refreshQPayToken(refreshToken);
           accessToken = refreshedTokens.access_token;
-          
+
           qpayInvoice = await createQPayInvoice(
             accessToken,
             qpayInvoiceCode,
@@ -264,7 +270,7 @@ serve(async (req) => {
             user.id.substring(0, 20),
             description.substring(0, 255),
             amount,
-            callbackUrl
+            callbackUrl,
           );
         } else {
           throw error;
@@ -274,10 +280,10 @@ serve(async (req) => {
       qpayInvoiceId = qpayInvoice.invoice_id;
       qrText = qpayInvoice.qr_text;
       bankUrls = qpayInvoice.urls || [];
-      
+
       // Format QR image as data URL
       qrImage = qpayInvoice.qr_image;
-      if (qrImage && !qrImage.startsWith('data:')) {
+      if (qrImage && !qrImage.startsWith("data:")) {
         qrImage = `data:image/png;base64,${qrImage}`;
       }
     }
@@ -316,16 +322,15 @@ serve(async (req) => {
         urls: bankUrls,
         invoice_id: qpayInvoiceId,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
     );
-
   } catch (error) {
     console.error("[Wallet Topup Error]", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-    );
+
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+    });
   }
 });
