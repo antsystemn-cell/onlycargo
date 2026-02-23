@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.omniway-wallet-check]
 verify_jwt = false
+
+[functions.storepay]
+verify_jwt = false

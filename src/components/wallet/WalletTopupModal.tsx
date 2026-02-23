@@ -9,6 +9,9 @@ import {
   Loader2,
   Wallet,
   CreditCard,
+  Phone,
+  ShieldCheck,
+  Banknote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,8 +48,8 @@ interface TopupRecord {
   omniway_qr_content?: string;
 }
 
-type TopupState = "input" | "provider_select" | "creating" | "pending" | "checking" | "completed" | "failed";
-type PaymentProvider = "qpay" | "omniway";
+type TopupState = "input" | "provider_select" | "creating" | "pending" | "checking" | "completed" | "failed" | "storepay_phone" | "storepay_credit_check" | "storepay_credit_result" | "storepay_creating" | "storepay_pending" | "storepay_checking";
+type PaymentProvider = "qpay" | "omniway" | "storepay";
 
 export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupModalProps) {
   const { toast } = useToast();
@@ -58,6 +61,11 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<PaymentProvider | null>(null);
   const autoCheckRef = useRef<NodeJS.Timeout | null>(null);
+  // Storepay-specific state
+  const [storepayPhone, setStorepayPhone] = useState("");
+  const [storepayEligible, setStorepayEligible] = useState(false);
+  const [storepayLimit, setStorepayLimit] = useState(0);
+  const [storepayTopupId, setStorepayTopupId] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -67,6 +75,10 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
       setErrorMessage(null);
       setIsDemoMode(false);
       setSelectedProvider(null);
+      setStorepayPhone("");
+      setStorepayEligible(false);
+      setStorepayLimit(0);
+      setStorepayTopupId(null);
     }
     return () => {
       if (autoCheckRef.current) clearInterval(autoCheckRef.current);
@@ -74,20 +86,25 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
   }, [open]);
 
   useEffect(() => {
-    if (topupState !== "pending" || !topupRecord) {
+    if (topupState !== "pending" && topupState !== "storepay_pending") {
       if (autoCheckRef.current) {
         clearInterval(autoCheckRef.current);
         autoCheckRef.current = null;
       }
       return;
     }
+    const interval = topupState === "storepay_pending" ? 5000 : 10000;
     autoCheckRef.current = setInterval(() => {
-      checkTopupStatus(true);
-    }, 10000);
+      if (topupState === "storepay_pending") {
+        checkStorepayTopupStatus(true);
+      } else {
+        checkTopupStatus(true);
+      }
+    }, interval);
     return () => {
       if (autoCheckRef.current) clearInterval(autoCheckRef.current);
     };
-  }, [topupState, topupRecord]);
+  }, [topupState, topupRecord, storepayTopupId]);
 
   const proceedToProviderSelect = () => {
     const amountNum = parseInt(amount);
@@ -112,8 +129,11 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
 
       if (provider === "qpay") {
         await createQPayTopup(token, amountNum);
-      } else {
+      } else if (provider === "omniway") {
         await createOmniWayTopup(token, amountNum);
+      } else if (provider === "storepay") {
+        setTopupState("storepay_phone");
+        return; // Storepay needs phone input first
       }
     } catch (error) {
       console.error("Topup creation error:", error);
@@ -193,6 +213,76 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
     } catch (error) {
       console.error("Status check error:", error);
       if (!isAutoCheck) setTopupState("pending");
+    }
+  };
+
+  // ─── Storepay functions ───
+  const callStorepayFn = async (body: Record<string, unknown>) => {
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token;
+    if (!token) throw new Error("Нэвтэрнэ үү");
+    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/storepay`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const result = await resp.json();
+    if (!resp.ok || result.success === false) throw new Error(result.error || "Storepay алдаа");
+    return result;
+  };
+
+  const handleStorepayCheckCredit = async () => {
+    if (!storepayPhone || !/^[6-9]\d{7}$/.test(storepayPhone)) {
+      toast({ title: "Утасны дугаараа зөв оруулна уу", variant: "destructive" });
+      return;
+    }
+    setTopupState("storepay_credit_check");
+    setErrorMessage(null);
+    try {
+      const result = await callStorepayFn({ action: "checkCredit", phone: storepayPhone });
+      setStorepayEligible(result.eligible);
+      setStorepayLimit(result.limit || 0);
+      setTopupState("storepay_credit_result");
+      if (!result.eligible) setErrorMessage(result.error || "Зээлийн эрх хүрэлцэхгүй");
+    } catch (err) {
+      setTopupState("storepay_credit_result");
+      setStorepayEligible(false);
+      setErrorMessage(err instanceof Error ? err.message : "Алдаа гарлаа");
+    }
+  };
+
+  const handleStorepayCreateTopup = async () => {
+    setTopupState("storepay_creating");
+    setErrorMessage(null);
+    try {
+      const result = await callStorepayFn({
+        action: "createWalletTopup",
+        phone: storepayPhone,
+        amount: parseInt(amount),
+      });
+      setStorepayTopupId(result.topup_id);
+      setTopupState("storepay_pending");
+      toast({ title: "Storepay нэхэмжлэл илгээгдлээ" });
+    } catch (err) {
+      setTopupState("storepay_credit_result");
+      setErrorMessage(err instanceof Error ? err.message : "Алдаа гарлаа");
+    }
+  };
+
+  const checkStorepayTopupStatus = async (isAutoCheck = false) => {
+    if (!storepayTopupId) return;
+    if (!isAutoCheck) setTopupState("storepay_checking");
+    try {
+      const result = await callStorepayFn({ action: "checkTopup", topup_id: storepayTopupId });
+      if (result.status === "completed") {
+        setTopupState("completed");
+        toast({ title: "Цэнэглэлт амжилттай!", description: "Storepay зээлээр цэнэглэгдлээ" });
+        onSuccess?.();
+      } else if (!isAutoCheck) {
+        setTopupState("storepay_pending");
+      }
+    } catch {
+      if (!isAutoCheck) setTopupState("storepay_pending");
     }
   };
 
@@ -302,6 +392,22 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                     <div className="flex-1">
                       <p className="font-semibold">OmniWay</p>
                       <p className="text-sm text-muted-foreground">OmniWay аппаар QR уншуулж төлөх</p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setSelectedProvider("storepay");
+                      setTopupState("storepay_phone");
+                    }}
+                    className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-accent transition-all text-left"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                      <Banknote className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold">Storepay</p>
+                      <p className="text-sm text-muted-foreground">Storepay зээлээр төлөх</p>
                     </div>
                   </button>
                 </div>
@@ -446,6 +552,130 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
               </Button>
               <p className="text-xs text-center text-muted-foreground">10 секунд тутамд автоматаар шалгана</p>
             </>
+          )}
+
+          {/* Storepay phone input */}
+          {topupState === "storepay_phone" && (
+            <div className="space-y-3">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Цэнэглэх дүн:</span>
+                    <span className="text-xl font-bold text-primary">{formatPrice(parseInt(amount))}</span>
+                  </div>
+                </CardContent>
+              </Card>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <Phone className="h-4 w-4" />
+                  Storepay утасны дугаар
+                </Label>
+                <Input
+                  type="tel"
+                  value={storepayPhone}
+                  onChange={(e) => setStorepayPhone(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                  placeholder="99112233"
+                  maxLength={8}
+                  inputMode="numeric"
+                />
+                <p className="text-xs text-muted-foreground">Storepay-д бүртгэлтэй дугаараа оруулна уу</p>
+              </div>
+              <Button onClick={handleStorepayCheckCredit} className="w-full" disabled={storepayPhone.length !== 8}>
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                Зээлийн эрх шалгах
+              </Button>
+              <Button variant="outline" onClick={() => setTopupState("provider_select")} className="w-full">
+                Буцах
+              </Button>
+            </div>
+          )}
+
+          {/* Storepay credit check loading */}
+          {topupState === "storepay_credit_check" && (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="mt-2 text-sm text-muted-foreground">Зээлийн эрх шалгаж байна...</p>
+            </div>
+          )}
+
+          {/* Storepay credit result */}
+          {topupState === "storepay_credit_result" && (
+            <div className="space-y-3">
+              {storepayEligible ? (
+                <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                      <span className="font-medium text-green-700 dark:text-green-400">Зээлийн эрх бий</span>
+                    </div>
+                    <p className="text-sm text-green-600 dark:text-green-500">
+                      Боломжит лимит: {formatPrice(storepayLimit)}
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2">
+                      <XCircle className="h-5 w-5 text-red-500" />
+                      <span className="font-medium text-red-700 dark:text-red-400">Зээлийн эрх хүрэлцэхгүй</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setTopupState("storepay_phone")}>
+                  Буцах
+                </Button>
+                {storepayEligible && (
+                  <Button className="flex-1" onClick={handleStorepayCreateTopup}>
+                    Нэхэмжлэх илгээх
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Storepay creating */}
+          {topupState === "storepay_creating" && (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="mt-2 text-sm text-muted-foreground">Storepay нэхэмжлэх үүсгэж байна...</p>
+            </div>
+          )}
+
+          {/* Storepay pending */}
+          {(topupState === "storepay_pending" || topupState === "storepay_checking") && (
+            <div className="space-y-3">
+              <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-900/20">
+                <CardContent className="p-4 text-center">
+                  <CheckCircle className="mx-auto h-10 w-10 text-blue-500 mb-2" />
+                  <p className="font-medium text-blue-700 dark:text-blue-400">Нэхэмжлэл илгээгдлээ</p>
+                  <p className="text-sm text-blue-600 dark:text-blue-500 mt-1">
+                    Storepay апп-аас баталгаажуулна уу
+                  </p>
+                </CardContent>
+              </Card>
+              <Button
+                onClick={() => checkStorepayTopupStatus(false)}
+                variant="outline"
+                className="w-full"
+                disabled={topupState === "storepay_checking"}
+              >
+                {topupState === "storepay_checking" ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Шалгаж байна...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Төлөв шалгах
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-center text-muted-foreground">5 секунд тутамд автоматаар шалгана</p>
+            </div>
           )}
 
           {topupState === "completed" && (

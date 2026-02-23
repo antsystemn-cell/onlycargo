@@ -9,7 +9,7 @@ export type CargoStatus =
 export type AppRole = 'admin' | 'user' | 'china_warehouse' | 'branch_admin';
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'refunded';
-export type PaymentMethod = 'qpay' | 'cash' | 'bank_transfer' | 'manual';
+export type PaymentMethod = 'qpay' | 'cash' | 'bank_transfer' | 'manual' | 'storepay';
 
 export interface Cargo {
   id: string;
