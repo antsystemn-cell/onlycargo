@@ -1,13 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import {
-  CheckCircle,
-  XCircle,
-  Loader2,
-  Phone,
-  ShieldCheck,
-  AlertTriangle,
-  RefreshCw,
-} from "lucide-react";
+import { CheckCircle, XCircle, Loader2, Phone, ShieldCheck, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -82,17 +74,14 @@ export default function StorepayPayment({
     const token = session.data.session?.access_token;
     if (!token) throw new Error("Нэвтэрнэ үү");
 
-    const resp = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/storepay`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
+    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/storepay`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
-    );
+      body: JSON.stringify(body),
+    });
     const result = await resp.json();
     if (!resp.ok || result.success === false) {
       throw new Error(result.error || "Storepay алдаа");
@@ -163,7 +152,7 @@ export default function StorepayPayment({
 
         if (result.status === "completed") {
           setState("completed");
-          toast({ title: "Төлбөр амжилттай!", description: "Storepay зээлээр төлөгдлөө" });
+          toast({ title: "Төлбөр амжилттай!", description: "Storepay-ээр төлөгдлөө" });
           onSuccess?.();
         } else if (result.status === "failed") {
           setState("failed");
@@ -194,9 +183,7 @@ export default function StorepayPayment({
             <span className="text-muted-foreground">Нийт дүн:</span>
             <span className="text-xl font-bold text-primary">{formatPrice(totalAmount)}</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {cargoIds.length} ачаа сонгогдсон • Storepay зээл
-          </p>
+          <p className="text-xs text-muted-foreground mt-1">{cargoIds.length} ачаа сонгогдсон • Storepay зээл</p>
         </CardContent>
       </Card>
 
@@ -216,15 +203,9 @@ export default function StorepayPayment({
               maxLength={8}
               inputMode="numeric"
             />
-            <p className="text-xs text-muted-foreground">
-              Storepay-д бүртгэлтэй утасны дугаараа оруулна уу
-            </p>
+            <p className="text-xs text-muted-foreground">Storepay-д бүртгэлтэй утасны дугаараа оруулна уу</p>
           </div>
-          <Button
-            onClick={handleCheckCredit}
-            className="w-full"
-            disabled={phone.length !== 8}
-          >
+          <Button onClick={handleCheckCredit} className="w-full" disabled={phone.length !== 8}>
             <ShieldCheck className="mr-2 h-4 w-4" />
             Зээлийн эрх шалгах
           </Button>
@@ -247,13 +228,9 @@ export default function StorepayPayment({
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle className="h-5 w-5 text-green-500" />
-                  <span className="font-medium text-green-700 dark:text-green-400">
-                    Зээлийн эрх бий
-                  </span>
+                  <span className="font-medium text-green-700 dark:text-green-400">Зээлийн эрх бий</span>
                 </div>
-                <p className="text-sm text-green-600 dark:text-green-500">
-                  Боломжит лимит: {formatPrice(creditLimit)}
-                </p>
+                <p className="text-sm text-green-600 dark:text-green-500">Боломжит лимит: {formatPrice(creditLimit)}</p>
               </CardContent>
             </Card>
           ) : (
@@ -261,9 +238,7 @@ export default function StorepayPayment({
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
                   <XCircle className="h-5 w-5 text-red-500" />
-                  <span className="font-medium text-red-700 dark:text-red-400">
-                    Зээлийн эрх хүрэлцэхгүй
-                  </span>
+                  <span className="font-medium text-red-700 dark:text-red-400">Зээлийн эрх хүрэлцэхгүй</span>
                 </div>
               </CardContent>
             </Card>
@@ -303,9 +278,7 @@ export default function StorepayPayment({
           <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-900/20">
             <CardContent className="p-4 text-center">
               <CheckCircle className="mx-auto h-10 w-10 text-blue-500 mb-2" />
-              <p className="font-medium text-blue-700 dark:text-blue-400">
-                Нэхэмжлэл илгээгдлээ
-              </p>
+              <p className="font-medium text-blue-700 dark:text-blue-400">Нэхэмжлэл илгээгдлээ</p>
               <p className="text-sm text-blue-600 dark:text-blue-500 mt-1">
                 Storepay апп-аас төлбөрөө баталгаажуулна уу
               </p>
@@ -330,9 +303,7 @@ export default function StorepayPayment({
               </>
             )}
           </Button>
-          <p className="text-xs text-center text-muted-foreground">
-            5 секунд тутамд автоматаар шалгана
-          </p>
+          <p className="text-xs text-center text-muted-foreground">5 секунд тутамд автоматаар шалгана</p>
         </div>
       )}
 
@@ -341,12 +312,8 @@ export default function StorepayPayment({
         <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20">
           <CardContent className="p-4 text-center">
             <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-2" />
-            <p className="font-medium text-green-700 dark:text-green-400">
-              Төлбөр амжилттай!
-            </p>
-            <p className="text-sm text-green-600 dark:text-green-500 mt-1">
-              Storepay зээлээр төлөгдлөө
-            </p>
+            <p className="font-medium text-green-700 dark:text-green-400">Төлбөр амжилттай!</p>
+            <p className="text-sm text-green-600 dark:text-green-500 mt-1">Storepay зээлээр төлөгдлөө</p>
           </CardContent>
         </Card>
       )}
@@ -356,9 +323,7 @@ export default function StorepayPayment({
         <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20">
           <CardContent className="p-4 text-center">
             <XCircle className="mx-auto h-12 w-12 text-red-500 mb-2" />
-            <p className="font-medium text-red-700 dark:text-red-400">
-              Төлбөр амжилтгүй
-            </p>
+            <p className="font-medium text-red-700 dark:text-red-400">Төлбөр амжилтгүй</p>
             <Button
               onClick={() => {
                 setState("phone_input");
