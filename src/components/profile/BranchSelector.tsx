@@ -107,16 +107,16 @@ export default function BranchSelector({ profile, onBranchChange }: BranchSelect
           Үндсэн салбар
         </Label>
         <Select value={selectedBranchId} onValueChange={handleBranchSelect}>
-          <SelectTrigger>
+          <SelectTrigger className="w-full overflow-hidden">
             <SelectValue placeholder="Салбар сонгох" />
           </SelectTrigger>
           <SelectContent>
             {branches.map((branch) => (
               <SelectItem key={branch.id} value={branch.id}>
-                <div className="flex flex-col items-start">
-                  <span>{branch.name}</span>
+                <div className="flex flex-col items-start min-w-0 max-w-full">
+                  <span className="truncate w-full">{branch.name}</span>
                   {branch.address && (
-                    <span className="text-xs text-muted-foreground">{branch.address}</span>
+                    <span className="text-xs text-muted-foreground truncate w-full">{branch.address}</span>
                   )}
                 </div>
               </SelectItem>
@@ -124,7 +124,7 @@ export default function BranchSelector({ profile, onBranchChange }: BranchSelect
           </SelectContent>
         </Select>
         {currentBranch && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground truncate">
             Хаяг: {currentBranch.address || 'Хаяг байхгүй'}
           </p>
         )}
