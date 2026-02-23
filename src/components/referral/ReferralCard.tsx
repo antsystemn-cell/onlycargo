@@ -1,30 +1,30 @@
-import { useState } from 'react';
-import { Users, Copy, Gift, Check } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useReferral } from '@/hooks/useReferral';
-import { formatPrice } from '@/lib/priceCalculation';
-import { useToast } from '@/hooks/use-toast';
+import { useState } from "react";
+import { Users, Copy, Gift, Check } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useReferral } from "@/hooks/useReferral";
+import { formatPrice } from "@/lib/priceCalculation";
+import { useToast } from "@/hooks/use-toast";
 
 export function ReferralCard() {
   const { toast } = useToast();
   const { referralCode, totalReferrals, totalRewards, isLoading, applyReferralCode } = useReferral();
-  const [inputCode, setInputCode] = useState('');
+  const [inputCode, setInputCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
 
   const handleCopyCode = async () => {
     if (!referralCode?.code) return;
-    
+
     try {
       await navigator.clipboard.writeText(referralCode.code);
       setCopied(true);
-      toast({ title: 'Хуулагдлаа!' });
+      toast({ title: "Хуулагдлаа!" });
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      toast({ title: 'Хуулж чадсангүй', variant: 'destructive' });
+      toast({ title: "Хуулж чадсангүй", variant: "destructive" });
     }
   };
 
@@ -36,10 +36,10 @@ export function ReferralCard() {
     setIsApplying(false);
 
     if (result.success) {
-      toast({ title: 'Урилгын код амжилттай ашиглагдлаа!' });
-      setInputCode('');
+      toast({ title: "Урилгын код амжилттай ашиглагдлаа!" });
+      setInputCode("");
     } else {
-      toast({ title: result.error || 'Алдаа гарлаа', variant: 'destructive' });
+      toast({ title: result.error || "Алдаа гарлаа", variant: "destructive" });
     }
   };
 
@@ -102,20 +102,16 @@ export function ReferralCard() {
               placeholder="ONLY1234AB"
               maxLength={12}
             />
-            <Button 
-              onClick={handleApplyCode} 
-              disabled={isApplying || !inputCode.trim()}
-              size="sm"
-            >
+            <Button onClick={handleApplyCode} disabled={isApplying || !inputCode.trim()} size="sm">
               <Gift className="h-4 w-4 mr-1" />
-              {isApplying ? '...' : 'Ашиглах'}
+              {isApplying ? "..." : "Ашиглах"}
             </Button>
           </div>
         </div>
 
         {/* Info */}
         <p className="text-xs text-muted-foreground">
-          Найзаа урьж урамшуулал авна уу! Тус бүрээс 5,000₮ түрийвчинд нэмэгдэнэ.
+          Найзаа урьж урамшуулал авна уу! Тус бүрээс 5,000₮ хэтэвчинд нэмэгдэнэ.
         </p>
       </CardContent>
     </Card>
