@@ -291,7 +291,7 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
       const result = await callStorepayFn({ action: "checkTopup", topup_id: storepayTopupId });
       if (result.status === "completed") {
         setTopupState("completed");
-        toast({ title: "Цэнэглэлт амжилттай!", description: "Storepay зээлээр цэнэглэгдлээ" });
+        toast({ title: "Цэнэглэлт амжилттай!", description: "Storepay-ээр цэнэглэгдлээ" });
         onSuccess?.();
       } else if (!isAutoCheck) {
         setTopupState("storepay_pending");
