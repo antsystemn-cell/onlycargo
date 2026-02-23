@@ -37,6 +37,7 @@ export function useSeo() {
       if (seo.keywords) setMetaTag('keywords', seo.keywords);
       setMetaTag('og:title', seo.og_title || seo.title, 'property');
       setMetaTag('og:description', seo.og_description || seo.description, 'property');
+      if (seo.og_image) setMetaTag('og:image', seo.og_image, 'property');
     }
   }, [location.pathname, seoSettings]);
 

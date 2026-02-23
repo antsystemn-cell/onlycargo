@@ -42,6 +42,7 @@ interface PageSeo {
   keywords: string;
   og_title: string;
   og_description: string;
+  og_image?: string;
 }
 
 type SeoSettingsMap = Record<string, PageSeo>;
