@@ -680,6 +680,9 @@ export type Database = {
           qpay_qr_text: string | null
           qpay_urls: Json | null
           status: Database["public"]["Enums"]["payment_status"]
+          storepay_loan_id: string | null
+          storepay_phone: string | null
+          storepay_request_id: string | null
           updated_at: string
           user_id: string
         }
@@ -697,6 +700,9 @@ export type Database = {
           qpay_qr_text?: string | null
           qpay_urls?: Json | null
           status?: Database["public"]["Enums"]["payment_status"]
+          storepay_loan_id?: string | null
+          storepay_phone?: string | null
+          storepay_request_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -714,6 +720,9 @@ export type Database = {
           qpay_qr_text?: string | null
           qpay_urls?: Json | null
           status?: Database["public"]["Enums"]["payment_status"]
+          storepay_loan_id?: string | null
+          storepay_phone?: string | null
+          storepay_request_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -999,6 +1008,9 @@ export type Database = {
           qpay_qr_text: string | null
           qpay_urls: Json | null
           status: string
+          storepay_loan_id: string | null
+          storepay_phone: string | null
+          storepay_request_id: string | null
           updated_at: string
           user_id: string
           wallet_id: string
@@ -1018,6 +1030,9 @@ export type Database = {
           qpay_qr_text?: string | null
           qpay_urls?: Json | null
           status?: string
+          storepay_loan_id?: string | null
+          storepay_phone?: string | null
+          storepay_request_id?: string | null
           updated_at?: string
           user_id: string
           wallet_id: string
@@ -1037,6 +1052,9 @@ export type Database = {
           qpay_qr_text?: string | null
           qpay_urls?: Json | null
           status?: string
+          storepay_loan_id?: string | null
+          storepay_phone?: string | null
+          storepay_request_id?: string | null
           updated_at?: string
           user_id?: string
           wallet_id?: string
@@ -1186,7 +1204,7 @@ export type Database = {
         | "warehouse_processing"
         | "ready_warehouse"
         | "completed"
-      payment_method: "qpay" | "cash" | "bank_transfer" | "manual"
+      payment_method: "qpay" | "cash" | "bank_transfer" | "manual" | "storepay"
       payment_status: "pending" | "paid" | "failed" | "cancelled" | "refunded"
     }
     CompositeTypes: {
@@ -1324,7 +1342,7 @@ export const Constants = {
         "ready_warehouse",
         "completed",
       ],
-      payment_method: ["qpay", "cash", "bank_transfer", "manual"],
+      payment_method: ["qpay", "cash", "bank_transfer", "manual", "storepay"],
       payment_status: ["pending", "paid", "failed", "cancelled", "refunded"],
     },
   },
