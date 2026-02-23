@@ -113,6 +113,7 @@ export function DeliveryMapPicker({ onLocationSelect, selectedLocation }: Delive
             streetViewControl: false,
             mapTypeControl: false,
             fullscreenControl: false,
+            gestureHandling: 'greedy',
           }}
         >
           {/* Zone polygons */}
