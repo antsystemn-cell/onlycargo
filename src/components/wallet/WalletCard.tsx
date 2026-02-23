@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, Gift } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useWallet } from '@/hooks/useWallet';
-import { formatPrice } from '@/lib/priceCalculation';
-import { WalletTopupModal } from './WalletTopupModal';
+import { useState } from "react";
+import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, Gift } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useWallet } from "@/hooks/useWallet";
+import { formatPrice } from "@/lib/priceCalculation";
+import { WalletTopupModal } from "./WalletTopupModal";
 
 export function WalletCard() {
   const { transactions, balance, refreshWallet, isLoading } = useWallet();
@@ -12,11 +12,11 @@ export function WalletCard() {
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
-      case 'topup':
+      case "topup":
         return <ArrowDownLeft className="h-4 w-4 text-green-500" />;
-      case 'payment':
+      case "payment":
         return <ArrowUpRight className="h-4 w-4 text-red-500" />;
-      case 'referral_reward':
+      case "referral_reward":
         return <Gift className="h-4 w-4 text-purple-500" />;
       default:
         return <Wallet className="h-4 w-4" />;
@@ -25,16 +25,16 @@ export function WalletCard() {
 
   const getTransactionLabel = (type: string) => {
     switch (type) {
-      case 'topup':
-        return 'Цэнэглэлт';
-      case 'payment':
-        return 'Төлбөр';
-      case 'refund':
-        return 'Буцаалт';
-      case 'referral_reward':
-        return 'Урилгын урамшуулал';
-      case 'admin_adjustment':
-        return 'Админ тохируулга';
+      case "topup":
+        return "Цэнэглэлт";
+      case "payment":
+        return "Төлбөр";
+      case "refund":
+        return "Буцаалт";
+      case "referral_reward":
+        return "Урилгын урамшуулал";
+      case "admin_adjustment":
+        return "Админ тохируулга";
       default:
         return type;
     }
@@ -62,7 +62,7 @@ export function WalletCard() {
         <CardHeader className="bg-gradient-to-br from-primary/10 to-transparent pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <Wallet className="h-5 w-5" />
-            Миний түрийвч
+            Миний хэтэвч
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
@@ -89,8 +89,9 @@ export function WalletCard() {
                       {getTransactionIcon(tx.type)}
                       <span>{getTransactionLabel(tx.type)}</span>
                     </div>
-                    <span className={tx.amount > 0 ? 'text-green-600' : 'text-red-600'}>
-                      {tx.amount > 0 ? '+' : ''}{formatPrice(tx.amount)}
+                    <span className={tx.amount > 0 ? "text-green-600" : "text-red-600"}>
+                      {tx.amount > 0 ? "+" : ""}
+                      {formatPrice(tx.amount)}
                     </span>
                   </div>
                 ))}
