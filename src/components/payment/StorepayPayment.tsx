@@ -313,7 +313,7 @@ export default function StorepayPayment({
           <CardContent className="p-4 text-center">
             <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-2" />
             <p className="font-medium text-green-700 dark:text-green-400">Төлбөр амжилттай!</p>
-            <p className="text-sm text-green-600 dark:text-green-500 mt-1">Storepay зээлээр төлөгдлөө</p>
+            <p className="text-sm text-green-600 dark:text-green-500 mt-1">Storepay-ээр төлөгдлөө</p>
           </CardContent>
         </Card>
       )}
