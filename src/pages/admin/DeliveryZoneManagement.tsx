@@ -169,11 +169,11 @@ export default function DeliveryZoneManagement() {
               Бүс нэмэх
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>{editingZone ? 'Бүс засах' : 'Шинэ бүс'}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto flex-1 pr-1">
               <div className="space-y-2">
                 <Label>Нэр *</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="A бүс" />
