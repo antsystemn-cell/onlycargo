@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Search, Globe, Type, FileText, Hash, Share2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Search, Globe, Type, FileText, Hash, Share2, Upload, ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GooglePreview, SocialPreview } from '@/components/seo/SeoPreviewSimulator';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export interface PageSeo {
   title: string;
@@ -13,6 +16,7 @@ export interface PageSeo {
   keywords: string;
   og_title: string;
   og_description: string;
+  og_image?: string;
 }
 
 export type SeoSettingsData = Record<string, PageSeo>;
@@ -34,9 +38,41 @@ interface SeoSettingsProps {
 
 export function SeoSettings({ seoSettings, onSeoChange }: SeoSettingsProps) {
   const [activeTab, setActiveTab] = useState('home');
+  const [uploadingOgImage, setUploadingOgImage] = useState(false);
+  const ogImageInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const currentPage = seoSettings[activeTab] || {
-    title: '', description: '', keywords: '', og_title: '', og_description: '',
+    title: '', description: '', keywords: '', og_title: '', og_description: '', og_image: '',
+  };
+
+  const handleOgImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingOgImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `og-${activeTab}-${Date.now()}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('site-assets')
+        .upload(fileName, file, { upsert: true });
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from('site-assets')
+        .getPublicUrl(data.path);
+
+      updateField('og_image', urlData.publicUrl);
+      toast({ title: 'OG зураг амжилттай хуулагдлаа' });
+    } catch (error) {
+      console.error('OG image upload error:', error);
+      toast({ title: 'Зураг хуулахад алдаа гарлаа', variant: 'destructive' });
+    } finally {
+      setUploadingOgImage(false);
+    }
   };
 
   const updateField = (field: keyof PageSeo, value: string) => {
@@ -145,6 +181,53 @@ export function SeoSettings({ seoSettings, onSeoChange }: SeoSettingsProps) {
                       rows={2}
                     />
                   </div>
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5">
+                      <ImageIcon className="h-3.5 w-3.5" />
+                      OG зураг (сошиал)
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={currentPage.og_image || ''}
+                        onChange={(e) => updateField('og_image', e.target.value)}
+                        placeholder="Зургийн URL эсвэл хуулах"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => ogImageInputRef.current?.click()}
+                        disabled={uploadingOgImage}
+                      >
+                        {uploadingOgImage ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <input
+                        ref={ogImageInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleOgImageUpload}
+                      />
+                    </div>
+                    {currentPage.og_image && (
+                      <div className="relative h-20 rounded-lg overflow-hidden border">
+                        <img
+                          src={currentPage.og_image}
+                          alt="OG preview"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Зөвлөмж: 1200×630px хэмжээтэй зураг хамгийн тохиромжтой
+                    </p>
+                  </div>
                 </div>
 
                 {/* Preview Simulator */}
@@ -158,6 +241,7 @@ export function SeoSettings({ seoSettings, onSeoChange }: SeoSettingsProps) {
                     description={currentPage.description}
                     ogTitle={currentPage.og_title}
                     ogDescription={currentPage.og_description}
+                    ogImage={currentPage.og_image}
                   />
                 </div>
               </div>

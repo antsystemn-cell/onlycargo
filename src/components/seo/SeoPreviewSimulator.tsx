@@ -6,6 +6,7 @@ interface SeoPreviewProps {
   url?: string;
   ogTitle?: string;
   ogDescription?: string;
+  ogImage?: string;
 }
 
 export function GooglePreview({ title, description, url = 'onlycargo.lovable.app' }: SeoPreviewProps) {
@@ -35,7 +36,7 @@ export function GooglePreview({ title, description, url = 'onlycargo.lovable.app
   );
 }
 
-export function SocialPreview({ title, description, ogTitle, ogDescription, url = 'onlycargo.lovable.app' }: SeoPreviewProps) {
+export function SocialPreview({ title, description, ogTitle, ogDescription, ogImage, url = 'onlycargo.lovable.app' }: SeoPreviewProps) {
   const displayTitle = ogTitle || title || 'Хуудасны гарчиг';
   const displayDesc = ogDescription || description || 'Тайлбар энд харагдана...';
 
@@ -45,8 +46,12 @@ export function SocialPreview({ title, description, ogTitle, ogDescription, url 
         <ExternalLink className="h-3 w-3" /> Сошиал хуваалцах preview
       </p>
       <div className="rounded-lg border bg-card overflow-hidden">
-        <div className="h-28 bg-muted flex items-center justify-center">
-          <span className="text-3xl font-bold text-muted-foreground/30">OG Image</span>
+        <div className="h-28 bg-muted flex items-center justify-center overflow-hidden">
+          {ogImage ? (
+            <img src={ogImage} alt="OG Preview" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-3xl font-bold text-muted-foreground/30">OG Image</span>
+          )}
         </div>
         <div className="p-3 space-y-0.5 border-t">
           <p className="text-[10px] text-muted-foreground uppercase">{url}</p>
