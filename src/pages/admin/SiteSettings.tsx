@@ -12,10 +12,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { FaviconSettings } from '@/components/admin/FaviconSettings';
 import { SeoSettings, type SeoSettingsData } from '@/components/admin/SeoSettings';
+import { PaymentIconSettings } from '@/components/admin/PaymentIconSettings';
+import type { PaymentIconConfig } from '@/hooks/useSiteSettings';
 
 export default function SiteSettings() {
   const { toast } = useToast();
-  const { logoUrl, faviconUrl, chinaWarehouseAddress, homepageBanner, pricing, seoSettings, refresh } = useSiteSettings();
+  const { logoUrl, faviconUrl, chinaWarehouseAddress, homepageBanner, pricing, paymentIcons, seoSettings, refresh } = useSiteSettings();
   const [isSaving, setIsSaving] = useState(false);
 
   // Logo
@@ -51,6 +53,7 @@ export default function SiteSettings() {
 
   // SEO
   const [currentSeoSettings, setCurrentSeoSettings] = useState<SeoSettingsData>(seoSettings || {});
+  const [currentPaymentIcons, setCurrentPaymentIcons] = useState<PaymentIconConfig>(paymentIcons || {});
 
   useEffect(() => {
     setBannerEnabled(homepageBanner.enabled);
@@ -70,7 +73,8 @@ export default function SiteSettings() {
     setTierVolumePrice(pricing.tier_volume_price.toString());
     setCurrentFaviconUrl(faviconUrl);
     setCurrentSeoSettings(seoSettings || {});
-  }, [homepageBanner, chinaWarehouseAddress, pricing, faviconUrl, seoSettings]);
+    setCurrentPaymentIcons(paymentIcons || {});
+  }, [homepageBanner, chinaWarehouseAddress, pricing, faviconUrl, seoSettings, paymentIcons]);
 
   const handleLogoUpload = async () => {
     if (!logoFile) return null;
@@ -163,13 +167,13 @@ export default function SiteSettings() {
           }),
         },
         { key: 'seo_settings', value: JSON.stringify(currentSeoSettings) },
+        { key: 'payment_icons', value: JSON.stringify(currentPaymentIcons) },
       ];
 
       for (const update of updates) {
         const { error } = await supabase
           .from('site_settings')
-          .update({ value: JSON.parse(update.value), updated_at: new Date().toISOString() })
-          .eq('key', update.key);
+          .upsert({ key: update.key, value: JSON.parse(update.value), updated_at: new Date().toISOString() }, { onConflict: 'key' });
 
         if (error) throw error;
       }
@@ -468,6 +472,9 @@ export default function SiteSettings() {
 
         {/* SEO Settings */}
         <SeoSettings seoSettings={currentSeoSettings} onSeoChange={setCurrentSeoSettings} />
+
+        {/* Payment Icon Settings */}
+        <PaymentIconSettings paymentIcons={currentPaymentIcons} onPaymentIconsChange={setCurrentPaymentIcons} />
       </div>
     </div>
   );

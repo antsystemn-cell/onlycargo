@@ -47,6 +47,12 @@ interface PageSeo {
 
 type SeoSettingsMap = Record<string, PageSeo>;
 
+export interface PaymentIconConfig {
+  qpay_icon_url?: string;
+  omniway_icon_url?: string;
+  storepay_icon_url?: string;
+}
+
 interface SiteSettingsContextType {
   logoUrl: string;
   faviconUrl: string;
@@ -55,6 +61,7 @@ interface SiteSettingsContextType {
   homepageWidgets: HomepageWidget[];
   pricing: Pricing;
   tierConfig: TieredPricingConfig;
+  paymentIcons: PaymentIconConfig;
   seoSettings: SeoSettingsMap;
   isLoading: boolean;
   refresh: () => Promise<void>;
@@ -91,6 +98,7 @@ const defaultSettings: SiteSettingsContextType = {
   ],
   pricing: defaultPricing,
   tierConfig: DEFAULT_TIER_CONFIG,
+  paymentIcons: {},
   seoSettings: {},
   isLoading: true,
   refresh: async () => {},
@@ -107,6 +115,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     homepageWidgets: defaultSettings.homepageWidgets,
     pricing: defaultSettings.pricing,
     tierConfig: defaultSettings.tierConfig,
+    paymentIcons: defaultSettings.paymentIcons,
     seoSettings: defaultSettings.seoSettings,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -151,6 +160,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
           homepageWidgets: (settingsMap.get('homepage_widgets') as HomepageWidget[]) || defaultSettings.homepageWidgets,
           pricing: mergedPricing,
           tierConfig,
+          paymentIcons: (settingsMap.get('payment_icons') as PaymentIconConfig) || defaultSettings.paymentIcons,
           seoSettings: (settingsMap.get('seo_settings') as SeoSettingsMap) || defaultSettings.seoSettings,
         });
       }
