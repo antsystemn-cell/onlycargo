@@ -49,7 +49,20 @@ interface TopupRecord {
   omniway_qr_content?: string;
 }
 
-type TopupState = "input" | "provider_select" | "creating" | "pending" | "checking" | "completed" | "failed" | "storepay_phone" | "storepay_credit_check" | "storepay_credit_result" | "storepay_creating" | "storepay_pending" | "storepay_checking";
+type TopupState =
+  | "input"
+  | "provider_select"
+  | "creating"
+  | "pending"
+  | "checking"
+  | "completed"
+  | "failed"
+  | "storepay_phone"
+  | "storepay_credit_check"
+  | "storepay_credit_result"
+  | "storepay_creating"
+  | "storepay_pending"
+  | "storepay_checking";
 type PaymentProvider = "qpay" | "omniway" | "storepay";
 
 export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupModalProps) {
@@ -421,7 +434,7 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold">Storepay</p>
-                      <p className="text-sm text-muted-foreground">Storepay зээлээр төлөх</p>
+                      <p className="text-sm text-muted-foreground">Storepay-ээр хувааж төлөх</p>
                     </div>
                   </button>
                 </div>
@@ -665,9 +678,7 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                 <CardContent className="p-4 text-center">
                   <CheckCircle className="mx-auto h-10 w-10 text-blue-500 mb-2" />
                   <p className="font-medium text-blue-700 dark:text-blue-400">Нэхэмжлэл илгээгдлээ</p>
-                  <p className="text-sm text-blue-600 dark:text-blue-500 mt-1">
-                    Storepay апп-аас баталгаажуулна уу
-                  </p>
+                  <p className="text-sm text-blue-600 dark:text-blue-500 mt-1">Storepay апп-аас баталгаажуулна уу</p>
                 </CardContent>
               </Card>
               <Button
