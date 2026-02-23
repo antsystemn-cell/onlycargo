@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, Polygon } from '@react-google-maps/api';
-import { Locate, Info } from 'lucide-react';
+import { Locate, Info, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDeliveryZones } from '@/hooks/useDeliveryZones';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface DeliveryMapPickerProps {
   onLocationSelect: (coords: { lat: number; lng: number }) => void;
@@ -28,6 +29,8 @@ export function DeliveryMapPicker({ onLocationSelect, selectedLocation }: Delive
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
   });
 
+  const isMobile = useIsMobile();
+  const mapRef = useRef<google.maps.Map | null>(null);
   const [address, setAddress] = useState('');
   const [isLocating, setIsLocating] = useState(false);
   const { zones, detectZone } = useDeliveryZones();
@@ -45,12 +48,36 @@ export function DeliveryMapPicker({ onLocationSelect, selectedLocation }: Delive
     }
   }, [coords, zones, detectZone]);
 
+  // Desktop: click to place pin
   const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
+    if (isMobile) return; // Mobile uses center pin instead
+    if (!e.latLng) return;
+    const newCoords = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+    setCoords(newCoords);
+    onLocationSelect(newCoords);
+  }, [onLocationSelect, isMobile]);
+
+  // Desktop: drag pin to new location
+  const handleMarkerDragEnd = useCallback((e: google.maps.MapMouseEvent) => {
     if (!e.latLng) return;
     const newCoords = { lat: e.latLng.lat(), lng: e.latLng.lng() };
     setCoords(newCoords);
     onLocationSelect(newCoords);
   }, [onLocationSelect]);
+
+  // Mobile: when map stops moving, use center as selected location
+  const handleMapIdle = useCallback(() => {
+    if (!isMobile || !mapRef.current) return;
+    const center = mapRef.current.getCenter();
+    if (!center) return;
+    const newCoords = { lat: center.lat(), lng: center.lng() };
+    setCoords(newCoords);
+    onLocationSelect(newCoords);
+  }, [isMobile, onLocationSelect]);
+
+  const handleMapLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
+  }, []);
 
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -103,12 +130,14 @@ export function DeliveryMapPicker({ onLocationSelect, selectedLocation }: Delive
         />
       </div>
 
-      <div className="rounded-lg overflow-hidden border">
+      <div className="rounded-lg overflow-hidden border relative">
         <GoogleMap
           mapContainerStyle={containerStyle}
           center={coords}
           zoom={13}
           onClick={handleMapClick}
+          onLoad={handleMapLoad}
+          onIdle={handleMapIdle}
           options={{
             streetViewControl: false,
             mapTypeControl: false,
@@ -135,9 +164,22 @@ export function DeliveryMapPicker({ onLocationSelect, selectedLocation }: Delive
             );
           })}
 
-          {/* Selected location marker */}
-          <Marker position={coords} />
+          {/* Desktop: draggable marker */}
+          {!isMobile && (
+            <Marker
+              position={coords}
+              draggable
+              onDragEnd={handleMarkerDragEnd}
+            />
+          )}
         </GoogleMap>
+
+        {/* Mobile: fixed center pin */}
+        {isMobile && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <MapPin className="h-8 w-8 text-destructive -mt-8 drop-shadow-lg" />
+          </div>
+        )}
       </div>
 
       {detectedZone && (
