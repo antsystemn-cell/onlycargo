@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/priceCalculation";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 interface WalletTopupModalProps {
   open: boolean;
@@ -54,6 +55,7 @@ type PaymentProvider = "qpay" | "omniway" | "storepay";
 export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupModalProps) {
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { paymentIcons } = useSiteSettings();
   const [amount, setAmount] = useState("");
   const [topupState, setTopupState] = useState<TopupState>("input");
   const [topupRecord, setTopupRecord] = useState<TopupRecord | null>(null);
@@ -373,8 +375,12 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                     onClick={() => createTopup("qpay")}
                     className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-accent transition-all text-left"
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                      <QrCode className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30 overflow-hidden">
+                      {paymentIcons.qpay_icon_url ? (
+                        <img src={paymentIcons.qpay_icon_url} alt="QPay" className="h-8 w-8 object-contain" />
+                      ) : (
+                        <QrCode className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold">QPay</p>
@@ -386,8 +392,12 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                     onClick={() => createTopup("omniway")}
                     className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-accent transition-all text-left"
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                      <CreditCard className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30 overflow-hidden">
+                      {paymentIcons.omniway_icon_url ? (
+                        <img src={paymentIcons.omniway_icon_url} alt="OmniWay" className="h-8 w-8 object-contain" />
+                      ) : (
+                        <CreditCard className="h-6 w-6 text-green-600 dark:text-green-400" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold">OmniWay</p>
@@ -402,8 +412,12 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                     }}
                     className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-accent transition-all text-left"
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                      <Banknote className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30 overflow-hidden">
+                      {paymentIcons.storepay_icon_url ? (
+                        <img src={paymentIcons.storepay_icon_url} alt="Storepay" className="h-8 w-8 object-contain" />
+                      ) : (
+                        <Banknote className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold">Storepay</p>
