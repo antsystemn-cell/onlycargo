@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.qpay-callback]
 verify_jwt = false
+
+[functions.omniway-wallet-topup]
+verify_jwt = false
+
+[functions.omniway-wallet-check]
+verify_jwt = false
