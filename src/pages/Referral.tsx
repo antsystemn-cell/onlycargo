@@ -1,18 +1,18 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Users, Copy, Check, Gift, ArrowLeft, Share2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/hooks/useAuth';
-import { useReferral } from '@/hooks/useReferral';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { formatPrice } from '@/lib/priceCalculation';
-import { format } from 'date-fns';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Users, Copy, Check, Gift, ArrowLeft, Share2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
+import { useReferral } from "@/hooks/useReferral";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { formatPrice } from "@/lib/priceCalculation";
+import { format } from "date-fns";
 
 interface ReferredUser {
   id: string;
@@ -29,9 +29,9 @@ export default function ReferralPage() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const { referralCode, totalReferrals, totalRewards, isLoading, applyReferralCode } = useReferral();
-  
+
   const [referredUsers, setReferredUsers] = useState<ReferredUser[]>([]);
-  const [inputCode, setInputCode] = useState('');
+  const [inputCode, setInputCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
@@ -47,72 +47,72 @@ export default function ReferralPage() {
 
     try {
       const { data } = await supabase
-        .from('referrals')
-        .select('*')
-        .eq('referrer_id', user.id)
-        .order('created_at', { ascending: false });
+        .from("referrals")
+        .select("*")
+        .eq("referrer_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (data) {
         // Fetch profile info for each referred user
         const usersWithProfiles = await Promise.all(
           data.map(async (ref) => {
             const { data: profile } = await supabase
-              .from('profiles')
-              .select('phone, full_name')
-              .eq('id', ref.referred_id)
+              .from("profiles")
+              .select("phone, full_name")
+              .eq("id", ref.referred_id)
               .single();
 
             return {
               ...ref,
-              referred_phone: profile?.phone || '—',
-              referred_name: profile?.full_name || '—',
+              referred_phone: profile?.phone || "—",
+              referred_name: profile?.full_name || "—",
             };
-          })
+          }),
         );
 
         setReferredUsers(usersWithProfiles);
       }
     } catch (error) {
-      console.error('Failed to fetch referred users:', error);
+      console.error("Failed to fetch referred users:", error);
     }
   };
 
   const handleCopyCode = async () => {
     if (!referralCode?.code) return;
-    
+
     try {
       await navigator.clipboard.writeText(referralCode.code);
       setCopied(true);
-      toast({ title: 'Код хуулагдлаа!' });
+      toast({ title: "Код хуулагдлаа!" });
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      toast({ title: 'Хуулж чадсангүй', variant: 'destructive' });
+      toast({ title: "Хуулж чадсангүй", variant: "destructive" });
     }
   };
 
   const handleCopyLink = async () => {
     if (!referralCode?.code) return;
-    
+
     const link = `${window.location.origin}/auth?ref=${referralCode.code}`;
     try {
       await navigator.clipboard.writeText(link);
       setCopiedLink(true);
-      toast({ title: 'Линк хуулагдлаа!' });
+      toast({ title: "Линк хуулагдлаа!" });
       setTimeout(() => setCopiedLink(false), 2000);
     } catch (error) {
-      toast({ title: 'Хуулж чадсангүй', variant: 'destructive' });
+      toast({ title: "Хуулж чадсангүй", variant: "destructive" });
     }
   };
 
   const handleShare = async () => {
     if (!referralCode?.code) return;
-    
+
     const link = `${window.location.origin}/auth?ref=${referralCode.code}`;
     const text = `OnlyCargo ашиглаж бүртгүүлээрэй! Миний урилгын код: ${referralCode.code}`;
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'OnlyCargo урилга', text, url: link });
+        await navigator.share({ title: "OnlyCargo урилга", text, url: link });
       } catch (error) {
         // User cancelled or share failed
       }
@@ -129,10 +129,10 @@ export default function ReferralPage() {
     setIsApplying(false);
 
     if (result.success) {
-      toast({ title: 'Урилгын код амжилттай ашиглагдлаа!' });
-      setInputCode('');
+      toast({ title: "Урилгын код амжилттай ашиглагдлаа!" });
+      setInputCode("");
     } else {
-      toast({ title: result.error || 'Алдаа гарлаа', variant: 'destructive' });
+      toast({ title: result.error || "Алдаа гарлаа", variant: "destructive" });
     }
   };
 
@@ -145,7 +145,7 @@ export default function ReferralPage() {
   }
 
   if (!user) {
-    navigate('/auth');
+    navigate("/auth");
     return null;
   }
 
@@ -189,9 +189,7 @@ export default function ReferralPage() {
                   <Gift className="h-5 w-5" />
                   Миний урилгын код
                 </CardTitle>
-                <CardDescription>
-                  Найзуудаа энэ кодоор урьж урамшуулал авна уу
-                </CardDescription>
+                <CardDescription>Найзуудаа энэ кодоор урьж урамшуулал авна уу</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex gap-2">
@@ -230,12 +228,9 @@ export default function ReferralPage() {
                   placeholder="ONLY1234AB"
                   maxLength={12}
                 />
-                <Button 
-                  onClick={handleApplyCode} 
-                  disabled={isApplying || !inputCode.trim()}
-                >
+                <Button onClick={handleApplyCode} disabled={isApplying || !inputCode.trim()}>
                   <Gift className="h-4 w-4 mr-2" />
-                  {isApplying ? '...' : 'Ашиглах'}
+                  {isApplying ? "..." : "Ашиглах"}
                 </Button>
               </div>
             </CardContent>
@@ -245,9 +240,7 @@ export default function ReferralPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Урьсан хэрэглэгчид</CardTitle>
-              <CardDescription>
-                Таны урилгаар бүртгүүлсэн хэрэглэгчид
-              </CardDescription>
+              <CardDescription>Таны урилгаар бүртгүүлсэн хэрэглэгчид</CardDescription>
             </CardHeader>
             <CardContent>
               {referredUsers.length === 0 ? (
@@ -276,15 +269,11 @@ export default function ReferralPage() {
                               <p className="text-xs text-muted-foreground">{ref.referred_phone}</p>
                             </div>
                           </TableCell>
-                          <TableCell className="text-xs">
-                            {format(new Date(ref.created_at), 'yyyy.MM.dd')}
-                          </TableCell>
-                          <TableCell className="font-semibold">
-                            {formatPrice(ref.reward_amount || 0)}
-                          </TableCell>
+                          <TableCell className="text-xs">{format(new Date(ref.created_at), "yyyy.MM.dd")}</TableCell>
+                          <TableCell className="font-semibold">{formatPrice(ref.reward_amount || 0)}</TableCell>
                           <TableCell>
-                            <Badge variant={ref.reward_paid ? 'default' : 'secondary'}>
-                              {ref.reward_paid ? 'Олгосон' : 'Хүлээгдэж буй'}
+                            <Badge variant={ref.reward_paid ? "default" : "secondary"}>
+                              {ref.reward_paid ? "Олгосон" : "Хүлээгдэж буй"}
                             </Badge>
                           </TableCell>
                         </TableRow>
@@ -303,7 +292,7 @@ export default function ReferralPage() {
               <ul className="text-xs text-muted-foreground space-y-1">
                 <li>• Найз бүртгүүлэхэд 1,000₮ урамшуулал</li>
                 <li>• Идэвхтэй хэрэглэгчийн төлбөрөөс 0.5% урамшуулал</li>
-                <li>• Урамшуулал түрийвчинд автоматаар нэмэгдэнэ</li>
+                <li>• Урамшуулал Хэтэвчинд автоматаар нэмэгдэнэ</li>
               </ul>
             </CardContent>
           </Card>
