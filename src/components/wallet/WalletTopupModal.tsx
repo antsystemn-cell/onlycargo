@@ -397,7 +397,7 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold">QPay</p>
-                      <p className="text-sm text-muted-foreground">Банкны аппаар QR уншуулж төлөх</p>
+                      <p className="text-sm text-muted-foreground">Банкны аппаар төлөх</p>
                     </div>
                   </button>
 
