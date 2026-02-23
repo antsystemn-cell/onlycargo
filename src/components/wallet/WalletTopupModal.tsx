@@ -204,7 +204,7 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5" />
-            Түрийвч цэнэглэх
+            Хэтэвч цэнэглэх
           </DialogTitle>
         </DialogHeader>
 
