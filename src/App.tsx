@@ -33,6 +33,7 @@ import SiteSettings from "@/pages/admin/SiteSettings";
 import BranchManagement from "@/pages/admin/BranchManagement";
 import BannerManagement from "@/pages/admin/BannerManagement";
 import DeliveryZoneManagement from "@/pages/admin/DeliveryZoneManagement";
+import DeliveryOrders from "@/pages/admin/DeliveryOrders";
 import ReferralSettings from "@/pages/admin/ReferralSettings";
 
 // China Warehouse Pages
@@ -76,6 +77,7 @@ const App = () => (
               <Route path="branches" element={<BranchManagement />} />
               <Route path="banners" element={<BannerManagement />} />
               <Route path="delivery-zones" element={<DeliveryZoneManagement />} />
+              <Route path="delivery-orders" element={<DeliveryOrders />} />
               <Route path="referral-settings" element={<ReferralSettings />} />
             </Route>
 

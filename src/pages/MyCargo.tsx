@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import CargoCard from '@/components/cargo/CargoCard';
 import CargoPreregistrationCard from '@/components/cargo/CargoPreregistrationCard';
 import CargoDetailModal from '@/components/cargo/CargoDetailModal';
-import QPayPayment from '@/components/payment/QPayPayment';
+import { DeliveryOrderModal } from '@/components/delivery/DeliveryOrderModal';
 import { useToast } from '@/hooks/use-toast';
 import type { Cargo, CargoStatus, CargoPreregistration } from '@/types/cargo';
 
@@ -32,8 +32,8 @@ export default function MyCargo() {
   const [selectedCargo, setSelectedCargo] = useState<Cargo | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   
-  // Payment modal state
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  // Delivery order modal state
+  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -62,7 +62,7 @@ export default function MyCargo() {
           .from('cargo_preregistrations')
           .select('*')
           .eq('user_id', user.id)
-          .is('matched_cargo_id', null) // Only show unmatched preregistrations
+          .is('matched_cargo_id', null)
           .order('created_at', { ascending: false }),
       ]);
 
@@ -154,8 +154,8 @@ export default function MyCargo() {
     setDetailModalOpen(true);
   };
 
-  const handlePaymentSuccess = () => {
-    setPaymentModalOpen(false);
+  const handleDeliverySuccess = () => {
+    setDeliveryModalOpen(false);
     setSelectedIds(new Set());
     fetchData();
     toast({
@@ -164,17 +164,12 @@ export default function MyCargo() {
     });
   };
 
-  const handlePaymentClose = () => {
-    setPaymentModalOpen(false);
-  };
-
   // Filter cargo that are ready for pickup (ready_warehouse status)
-  const readyCargo = cargo.filter((c) => c.status === 'ready_warehouse');
   const selectedCargoItems = cargo.filter((c) => selectedIds.has(c.id));
   const totalPrice = selectedCargoItems.reduce((sum, c) => sum + (c.price || 0), 0);
   
   // Check if all selected cargo are ready for payment
-  const canPay = selectedIds.size > 0 && selectedCargoItems.every(c => c.status === 'ready_warehouse' && c.price && c.price > 0);
+  const canProceed = selectedIds.size > 0 && selectedCargoItems.every(c => c.status === 'ready_warehouse' && c.price && c.price > 0);
 
   if (authLoading || isLoading) {
     return (
@@ -269,7 +264,6 @@ export default function MyCargo() {
                           showCheckbox={item.status === 'ready_warehouse'}
                           selected={selectedIds.has(item.id)}
                           onSelect={(id, selected) => {
-                            // Prevent click propagation when checkbox is clicked
                             handleSelect(id, selected);
                           }}
                         />
@@ -277,13 +271,13 @@ export default function MyCargo() {
                     ))}
                   </div>
 
-                  {/* Payment Panel */}
+                  {/* Proceed Panel */}
                   {selectedIds.size > 0 && (
                     <Card className="sticky bottom-24 border-primary shadow-lg animate-slide-up">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-base">Сонгосон ачаа</CardTitle>
                         <CardDescription>
-                          {!canPay && selectedIds.size > 0 && (
+                          {!canProceed && selectedIds.size > 0 && (
                             <span className="text-destructive text-xs">
                               Зөвхөн бэлэн болсон, үнэ тогтоогдсон ачаа төлөх боломжтой
                             </span>
@@ -301,11 +295,11 @@ export default function MyCargo() {
                         </div>
                         <Button 
                           className="w-full" 
-                          disabled={!canPay}
-                          onClick={() => setPaymentModalOpen(true)}
+                          disabled={!canProceed}
+                          onClick={() => setDeliveryModalOpen(true)}
                         >
                           <CreditCard className="mr-2 h-4 w-4" />
-                          QPay-ээр төлөх
+                          Үргэлжлүүлэх
                         </Button>
                       </CardContent>
                     </Card>
@@ -349,27 +343,13 @@ export default function MyCargo() {
         onOpenChange={setDetailModalOpen}
       />
 
-      {/* QPay Payment Modal */}
-      {user && (
-        <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                QPay төлбөр
-              </DialogTitle>
-            </DialogHeader>
-            <QPayPayment
-              cargoIds={Array.from(selectedIds)}
-              totalAmount={totalPrice}
-              userId={user.id}
-              branchId={profile?.default_branch_id || null}
-              onSuccess={handlePaymentSuccess}
-              onClose={handlePaymentClose}
-            />
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Delivery Order Modal (replaces direct QPay payment) */}
+      <DeliveryOrderModal
+        open={deliveryModalOpen}
+        onOpenChange={setDeliveryModalOpen}
+        selectedCargo={selectedCargoItems}
+        onSuccess={handleDeliverySuccess}
+      />
     </div>
   );
 }
