@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const OMNIWAY_BASE_URL = "https://payment.omnitech.mn";
@@ -21,10 +22,14 @@ interface OmniWayErrorResponse {
 
 function getOmniWayErrorMessage(code: number): string {
   switch (code) {
-    case 1001: return "Нэхэмжлэхийн дүн хоосон байна";
-    case 1011: return "Нэхэмжлэхийн дүн буруу байна";
-    case 1012: return "Захиалгын дугаар давхардсан байна";
-    default: return "OmniWay алдаа гарлаа";
+    case 1001:
+      return "Нэхэмжлэхийн дүн хоосон байна";
+    case 1011:
+      return "Нэхэмжлэхийн дүн буруу байна";
+    case 1012:
+      return "Захиалгын дугаар давхардсан байна";
+    default:
+      return "OmniWay алдаа гарлаа";
   }
 }
 
@@ -48,9 +53,10 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify user
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
     if (authError || !user) {
       throw new Error("Unauthorized");
     }
@@ -98,22 +104,18 @@ serve(async (req) => {
     const callbackUrl = `${supabaseUrl}/functions/v1/omniway-callback`;
 
     // Get user profile for phone
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("phone")
-      .eq("id", user.id)
-      .maybeSingle();
+    const { data: profile } = await supabase.from("profiles").select("phone").eq("id", user.id).maybeSingle();
 
     // Create OmniWay invoice
     const credentials = btoa(`${omniUsername}:${omniPassword}`);
-    
+
     const invoiceBody = {
       amount: amountNum,
       orderNumber: orderNumber,
       mobileNumber: profile?.phone || "",
       email: "",
       shippingAddress: "",
-      description: `OnlyCargo Түрийвч цэнэглэлт - ${amountNum.toLocaleString()}₮`,
+      description: `OnlyCargo Хэтэвч цэнэглэлт - ${amountNum.toLocaleString()}₮`,
       callbackUrl: callbackUrl,
     };
 
@@ -123,8 +125,8 @@ serve(async (req) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": `Basic ${credentials}`,
+        Accept: "application/json",
+        Authorization: `Basic ${credentials}`,
       },
       body: JSON.stringify(invoiceBody),
     });
@@ -168,15 +170,14 @@ serve(async (req) => {
         qr_content: invoiceData.qrContent,
         image_base64: invoiceData.imageBase64,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
     );
-
   } catch (error) {
     console.error("[OmniWay Topup Error]", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-    );
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+    });
   }
 });
