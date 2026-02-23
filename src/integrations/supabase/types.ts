@@ -989,7 +989,11 @@ export type Database = {
           created_at: string
           id: string
           invoice_ref: string | null
+          omniway_image_base64: string | null
+          omniway_invoice_number: string | null
+          omniway_qr_content: string | null
           paid_at: string | null
+          provider: string
           qpay_invoice_id: string | null
           qpay_qr_image: string | null
           qpay_qr_text: string | null
@@ -1004,7 +1008,11 @@ export type Database = {
           created_at?: string
           id?: string
           invoice_ref?: string | null
+          omniway_image_base64?: string | null
+          omniway_invoice_number?: string | null
+          omniway_qr_content?: string | null
           paid_at?: string | null
+          provider?: string
           qpay_invoice_id?: string | null
           qpay_qr_image?: string | null
           qpay_qr_text?: string | null
@@ -1019,7 +1027,11 @@ export type Database = {
           created_at?: string
           id?: string
           invoice_ref?: string | null
+          omniway_image_base64?: string | null
+          omniway_invoice_number?: string | null
+          omniway_qr_content?: string | null
           paid_at?: string | null
+          provider?: string
           qpay_invoice_id?: string | null
           qpay_qr_image?: string | null
           qpay_qr_text?: string | null
