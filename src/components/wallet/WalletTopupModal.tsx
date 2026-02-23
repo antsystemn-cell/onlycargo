@@ -1,15 +1,25 @@
-import { useState, useEffect, useRef } from 'react';
-import { QrCode, RefreshCw, CheckCircle, XCircle, Smartphone, AlertTriangle, Loader2, Wallet, CreditCard } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { formatPrice } from '@/lib/priceCalculation';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useState, useEffect, useRef } from "react";
+import {
+  QrCode,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Smartphone,
+  AlertTriangle,
+  Loader2,
+  Wallet,
+  CreditCard,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { formatPrice } from "@/lib/priceCalculation";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface WalletTopupModalProps {
   open: boolean;
@@ -26,7 +36,7 @@ interface QPayBankApp {
 
 interface TopupRecord {
   id: string;
-  provider: 'qpay' | 'omniway';
+  provider: "qpay" | "omniway";
   // QPay fields
   qpay_qr_image?: string;
   qpay_urls?: QPayBankApp[];
@@ -35,14 +45,14 @@ interface TopupRecord {
   omniway_qr_content?: string;
 }
 
-type TopupState = 'input' | 'provider_select' | 'creating' | 'pending' | 'checking' | 'completed' | 'failed';
-type PaymentProvider = 'qpay' | 'omniway';
+type TopupState = "input" | "provider_select" | "creating" | "pending" | "checking" | "completed" | "failed";
+type PaymentProvider = "qpay" | "omniway";
 
 export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupModalProps) {
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const [amount, setAmount] = useState('');
-  const [topupState, setTopupState] = useState<TopupState>('input');
+  const [amount, setAmount] = useState("");
+  const [topupState, setTopupState] = useState<TopupState>("input");
   const [topupRecord, setTopupRecord] = useState<TopupRecord | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -51,8 +61,8 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
 
   useEffect(() => {
     if (open) {
-      setAmount('');
-      setTopupState('input');
+      setAmount("");
+      setTopupState("input");
       setTopupRecord(null);
       setErrorMessage(null);
       setIsDemoMode(false);
@@ -64,7 +74,7 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
   }, [open]);
 
   useEffect(() => {
-    if (topupState !== 'pending' || !topupRecord) {
+    if (topupState !== "pending" || !topupRecord) {
       if (autoCheckRef.current) {
         clearInterval(autoCheckRef.current);
         autoCheckRef.current = null;
@@ -82,109 +92,107 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
   const proceedToProviderSelect = () => {
     const amountNum = parseInt(amount);
     if (!amountNum || amountNum < 1000) {
-      toast({ title: 'Хамгийн багадаа 1,000₮', variant: 'destructive' });
+      toast({ title: "Хамгийн багадаа 1,000₮", variant: "destructive" });
       return;
     }
-    setTopupState('provider_select');
+    setTopupState("provider_select");
   };
 
   const createTopup = async (provider: PaymentProvider) => {
     setSelectedProvider(provider);
-    setTopupState('creating');
+    setTopupState("creating");
     setErrorMessage(null);
 
     try {
       const session = await supabase.auth.getSession();
       const token = session.data.session?.access_token;
-      if (!token) throw new Error('Нэвтэрнэ үү');
+      if (!token) throw new Error("Нэвтэрнэ үү");
 
       const amountNum = parseInt(amount);
 
-      if (provider === 'qpay') {
+      if (provider === "qpay") {
         await createQPayTopup(token, amountNum);
       } else {
         await createOmniWayTopup(token, amountNum);
       }
     } catch (error) {
-      console.error('Topup creation error:', error);
-      setTopupState('provider_select');
-      setErrorMessage(error instanceof Error ? error.message : 'Алдаа гарлаа');
-      toast({ title: 'Нэхэмжлэх үүсгэхэд алдаа гарлаа', variant: 'destructive' });
+      console.error("Topup creation error:", error);
+      setTopupState("provider_select");
+      setErrorMessage(error instanceof Error ? error.message : "Алдаа гарлаа");
+      toast({ title: "Нэхэмжлэх үүсгэхэд алдаа гарлаа", variant: "destructive" });
     }
   };
 
   const createQPayTopup = async (token: string, amountNum: number) => {
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/qpay-wallet-topup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ amount: amountNum }),
     });
     const result = await response.json();
-    if (!response.ok || !result.success) throw new Error(result.error || 'QPay нэхэмжлэх үүсгэхэд алдаа');
+    if (!response.ok || !result.success) throw new Error(result.error || "QPay нэхэмжлэх үүсгэхэд алдаа");
 
     setIsDemoMode(result.demo_mode || false);
     setTopupRecord({
       id: result.topup_id,
-      provider: 'qpay',
+      provider: "qpay",
       qpay_qr_image: result.qr_image,
       qpay_urls: result.urls || [],
     });
-    setTopupState('pending');
-    toast({ title: 'QPay нэхэмжлэх үүсгэгдлээ' });
+    setTopupState("pending");
+    toast({ title: "QPay нэхэмжлэх үүсгэгдлээ" });
   };
 
   const createOmniWayTopup = async (token: string, amountNum: number) => {
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/omniway-wallet-topup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ amount: amountNum }),
     });
     const result = await response.json();
-    if (!response.ok || !result.success) throw new Error(result.error || 'OmniWay нэхэмжлэх үүсгэхэд алдаа');
+    if (!response.ok || !result.success) throw new Error(result.error || "OmniWay нэхэмжлэх үүсгэхэд алдаа");
 
     setTopupRecord({
       id: result.topup_id,
-      provider: 'omniway',
+      provider: "omniway",
       omniway_image_base64: result.image_base64,
       omniway_qr_content: result.qr_content,
     });
-    setTopupState('pending');
-    toast({ title: 'OmniWay нэхэмжлэх үүсгэгдлээ' });
+    setTopupState("pending");
+    toast({ title: "OmniWay нэхэмжлэх үүсгэгдлээ" });
   };
 
   const checkTopupStatus = async (isAutoCheck = false) => {
     if (!topupRecord) return;
-    if (!isAutoCheck) setTopupState('checking');
+    if (!isAutoCheck) setTopupState("checking");
 
     try {
       const session = await supabase.auth.getSession();
       const token = session.data.session?.access_token;
       if (!token) return;
 
-      const endpoint = topupRecord.provider === 'omniway'
-        ? 'omniway-wallet-check'
-        : 'qpay-wallet-check';
+      const endpoint = topupRecord.provider === "omniway" ? "omniway-wallet-check" : "qpay-wallet-check";
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ topup_id: topupRecord.id }),
       });
       const result = await response.json();
 
-      if (result.status === 'completed') {
-        setTopupState('completed');
-        toast({ title: 'Цэнэглэлт амжилттай!', description: 'Түрийвч цэнэглэгдлээ' });
+      if (result.status === "completed") {
+        setTopupState("completed");
+        toast({ title: "Цэнэглэлт амжилттай!", description: "Хэтэвч цэнэглэгдлээ" });
         onSuccess?.();
-      } else if (result.status === 'failed') {
-        setTopupState('failed');
-        toast({ title: 'Цэнэглэлт амжилтгүй', variant: 'destructive' });
+      } else if (result.status === "failed") {
+        setTopupState("failed");
+        toast({ title: "Цэнэглэлт амжилтгүй", variant: "destructive" });
       } else if (!isAutoCheck) {
-        setTopupState('pending');
+        setTopupState("pending");
       }
     } catch (error) {
-      console.error('Status check error:', error);
-      if (!isAutoCheck) setTopupState('pending');
+      console.error("Status check error:", error);
+      if (!isAutoCheck) setTopupState("pending");
     }
   };
 
@@ -202,7 +210,10 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
 
         <div className="space-y-4 overflow-y-auto flex-1 pr-1">
           {isDemoMode && (
-            <Alert variant="default" className="border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-900/20">
+            <Alert
+              variant="default"
+              className="border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-900/20"
+            >
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
               <AlertDescription className="text-yellow-700 dark:text-yellow-400">
                 Демо горим - QPay холболт тохируулаагүй
@@ -218,7 +229,7 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
           )}
 
           {/* Step 1: Amount input */}
-          {topupState === 'input' && (
+          {topupState === "input" && (
             <>
               <div className="space-y-2">
                 <Label>Цэнэглэх дүн (₮)</Label>
@@ -235,7 +246,7 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                 {quickAmounts.map((amt) => (
                   <Button
                     key={amt}
-                    variant={amount === String(amt) ? 'default' : 'outline'}
+                    variant={amount === String(amt) ? "default" : "outline"}
                     size="sm"
                     onClick={() => setAmount(String(amt))}
                   >
@@ -243,14 +254,18 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                   </Button>
                 ))}
               </div>
-              <Button onClick={proceedToProviderSelect} className="w-full" disabled={!amount || parseInt(amount) < 1000}>
+              <Button
+                onClick={proceedToProviderSelect}
+                className="w-full"
+                disabled={!amount || parseInt(amount) < 1000}
+              >
                 Үргэлжлүүлэх
               </Button>
             </>
           )}
 
           {/* Step 2: Provider selection */}
-          {topupState === 'provider_select' && (
+          {topupState === "provider_select" && (
             <>
               <Card>
                 <CardContent className="p-4">
@@ -265,7 +280,7 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                 <Label>Төлбөрийн хэрэгсэл сонгох</Label>
                 <div className="space-y-3">
                   <button
-                    onClick={() => createTopup('qpay')}
+                    onClick={() => createTopup("qpay")}
                     className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-accent transition-all text-left"
                   >
                     <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
@@ -278,7 +293,7 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                   </button>
 
                   <button
-                    onClick={() => createTopup('omniway')}
+                    onClick={() => createTopup("omniway")}
                     className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-accent transition-all text-left"
                   >
                     <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
@@ -292,13 +307,13 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                 </div>
               </div>
 
-              <Button variant="outline" onClick={() => setTopupState('input')} className="w-full">
+              <Button variant="outline" onClick={() => setTopupState("input")} className="w-full">
                 Буцах
               </Button>
             </>
           )}
 
-          {topupState === 'creating' && (
+          {topupState === "creating" && (
             <div className="flex flex-col items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="mt-2 text-sm text-muted-foreground">Нэхэмжлэх үүсгэж байна...</p>
@@ -306,7 +321,7 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
           )}
 
           {/* Pending/Checking - QPay */}
-          {(topupState === 'pending' || topupState === 'checking') && topupRecord?.provider === 'qpay' && (
+          {(topupState === "pending" || topupState === "checking") && topupRecord?.provider === "qpay" && (
             <>
               <Card>
                 <CardContent className="p-4">
@@ -349,11 +364,22 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                 </div>
               )}
 
-              <Button onClick={() => checkTopupStatus(false)} variant="outline" className="w-full" disabled={topupState === 'checking'}>
-                {topupState === 'checking' ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Шалгаж байна...</>
+              <Button
+                onClick={() => checkTopupStatus(false)}
+                variant="outline"
+                className="w-full"
+                disabled={topupState === "checking"}
+              >
+                {topupState === "checking" ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Шалгаж байна...
+                  </>
                 ) : (
-                  <><RefreshCw className="mr-2 h-4 w-4" />Төлөв шалгах</>
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Төлөв шалгах
+                  </>
                 )}
               </Button>
               <p className="text-xs text-center text-muted-foreground">10 секунд тутамд автоматаар шалгана</p>
@@ -361,7 +387,7 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
           )}
 
           {/* Pending/Checking - OmniWay */}
-          {(topupState === 'pending' || topupState === 'checking') && topupRecord?.provider === 'omniway' && (
+          {(topupState === "pending" || topupState === "checking") && topupRecord?.provider === "omniway" && (
             <>
               <Card>
                 <CardContent className="p-4">
@@ -400,18 +426,29 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                 )
               )}
 
-              <Button onClick={() => checkTopupStatus(false)} variant="outline" className="w-full" disabled={topupState === 'checking'}>
-                {topupState === 'checking' ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Шалгаж байна...</>
+              <Button
+                onClick={() => checkTopupStatus(false)}
+                variant="outline"
+                className="w-full"
+                disabled={topupState === "checking"}
+              >
+                {topupState === "checking" ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Шалгаж байна...
+                  </>
                 ) : (
-                  <><RefreshCw className="mr-2 h-4 w-4" />Төлөв шалгах</>
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Төлөв шалгах
+                  </>
                 )}
               </Button>
               <p className="text-xs text-center text-muted-foreground">10 секунд тутамд автоматаар шалгана</p>
             </>
           )}
 
-          {topupState === 'completed' && (
+          {topupState === "completed" && (
             <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20">
               <CardContent className="p-4 text-center">
                 <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-2" />
@@ -419,12 +456,14 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                 <p className="text-2xl font-bold text-green-600 dark:text-green-500 mt-2">
                   +{formatPrice(parseInt(amount))}
                 </p>
-                <Button onClick={() => onOpenChange(false)} className="mt-4">Хаах</Button>
+                <Button onClick={() => onOpenChange(false)} className="mt-4">
+                  Хаах
+                </Button>
               </CardContent>
             </Card>
           )}
 
-          {topupState === 'failed' && (
+          {topupState === "failed" && (
             <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20">
               <CardContent className="p-4 text-center">
                 <XCircle className="mx-auto h-12 w-12 text-red-500 mb-2" />
@@ -432,8 +471,8 @@ export function WalletTopupModal({ open, onOpenChange, onSuccess }: WalletTopupM
                 <Button
                   onClick={() => {
                     setTopupRecord(null);
-                    setTopupState('input');
-                    setAmount('');
+                    setTopupState("input");
+                    setAmount("");
                     setSelectedProvider(null);
                   }}
                   variant="outline"
