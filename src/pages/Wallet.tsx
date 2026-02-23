@@ -55,7 +55,7 @@ export default function WalletPage() {
               <div className="mt-6">
                 <Button variant="secondary" className="w-full" size="lg" onClick={() => setShowTopup(true)}>
                   <Plus className="h-5 w-5 mr-2" />
-                  Дансаа цэнэглэх
+                  Хэтэвчээ цэнэглэх
                 </Button>
               </div>
             </CardContent>
