@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Upload, Save, Image, FileText, MapPin, Calculator, TrendingDown, Building2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, Upload, Save, Image, FileText, MapPin, Calculator, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
@@ -15,18 +14,11 @@ import { FaviconSettings } from '@/components/admin/FaviconSettings';
 import { SeoSettings, type SeoSettingsData } from '@/components/admin/SeoSettings';
 import { PaymentIconSettings } from '@/components/admin/PaymentIconSettings';
 import type { PaymentIconConfig } from '@/hooks/useSiteSettings';
-import type { Branch } from '@/types/cargo';
 
 export default function SiteSettings() {
   const { toast } = useToast();
-  const { logoUrl, faviconUrl, homepageBanner, pricing, paymentIcons, seoSettings, refresh } = useSiteSettings();
+  const { logoUrl, faviconUrl, chinaWarehouseAddress, homepageBanner, pricing, paymentIcons, seoSettings, refresh } = useSiteSettings();
   const [isSaving, setIsSaving] = useState(false);
-
-  // Branch china addresses
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [branchAddresses, setBranchAddresses] = useState<Record<string, { prefix: string; text: string }>>({});
-  const [savingBranchId, setSavingBranchId] = useState<string | null>(null);
-  const [openBranchId, setOpenBranchId] = useState<string | null>(null);
 
   // Logo
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -39,27 +31,11 @@ export default function SiteSettings() {
   const [uploadingBannerImage, setUploadingBannerImage] = useState(false);
   const bannerImageInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch branches for china address editing
-  useEffect(() => {
-    const fetchBranches = async () => {
-      const { data } = await supabase
-        .from('branches')
-        .select('*')
-        .order('name');
-      if (data) {
-        setBranches(data as Branch[]);
-        const addrs: Record<string, { prefix: string; text: string }> = {};
-        for (const b of data) {
-          addrs[b.id] = {
-            prefix: b.china_address_prefix || 'ONLY',
-            text: b.china_address_text || '',
-          };
-        }
-        setBranchAddresses(addrs);
-      }
-    };
-    fetchBranches();
-  }, []);
+  // China address
+  const [chinaReceiver, setChinaReceiver] = useState(chinaWarehouseAddress.receiver);
+  const [chinaPhone, setChinaPhone] = useState(chinaWarehouseAddress.phone);
+  const [chinaRegion, setChinaRegion] = useState(chinaWarehouseAddress.region);
+  const [chinaAddress, setChinaAddress] = useState(chinaWarehouseAddress.address);
 
   // Pricing - Normal rates
   const [pricePerKg, setPricePerKg] = useState(pricing.per_kg.toString());
@@ -84,6 +60,10 @@ export default function SiteSettings() {
     setBannerTitle(homepageBanner.title);
     setBannerDescription(homepageBanner.description);
     setBannerBackgroundImage(homepageBanner.backgroundImage || '');
+    setChinaReceiver(chinaWarehouseAddress.receiver);
+    setChinaPhone(chinaWarehouseAddress.phone);
+    setChinaRegion(chinaWarehouseAddress.region);
+    setChinaAddress(chinaWarehouseAddress.address);
     setPricePerKg(pricing.per_kg.toString());
     setPricePerCubicMeter(pricing.per_cubic_meter.toString());
     setChinaPricePerKg(pricing.china_per_kg.toString());
@@ -94,7 +74,7 @@ export default function SiteSettings() {
     setCurrentFaviconUrl(faviconUrl);
     setCurrentSeoSettings(seoSettings || {});
     setCurrentPaymentIcons(paymentIcons || {});
-  }, [homepageBanner, pricing, faviconUrl, seoSettings, paymentIcons]);
+  }, [homepageBanner, chinaWarehouseAddress, pricing, faviconUrl, seoSettings, paymentIcons]);
 
   const handleLogoUpload = async () => {
     if (!logoFile) return null;
@@ -156,6 +136,15 @@ export default function SiteSettings() {
       const updates = [
         { key: 'logo_url', value: JSON.stringify(newLogoUrl) },
         { key: 'favicon_url', value: JSON.stringify(currentFaviconUrl) },
+        {
+          key: 'china_warehouse_address',
+          value: JSON.stringify({
+            receiver: chinaReceiver,
+            phone: chinaPhone,
+            region: chinaRegion,
+            address: chinaAddress,
+          }),
+        },
         {
           key: 'homepage_banner',
           value: JSON.stringify({
@@ -319,99 +308,32 @@ export default function SiteSettings() {
           </CardContent>
         </Card>
 
-        {/* China Address Settings - Per Branch */}
-        <Card className="md:col-span-2">
+        {/* China Address Settings */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <MapPin className="h-4 w-4" />
-              Хятад агуулахын хаягууд
+              Хятад агуулахын хаяг
             </CardTitle>
-            <CardDescription>Салбар бүрийн Хятад агуулахын хаягийг тохируулах</CardDescription>
+            <CardDescription>Хүлээн авах агуулахын хаяг</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {branches.length === 0 && (
-              <p className="text-sm text-muted-foreground">Салбар бүртгэгдээгүй байна. Эхлээд салбар нэмнэ үү.</p>
-            )}
-            {branches.map((branch) => {
-              const addr = branchAddresses[branch.id] || { prefix: 'ONLY', text: '' };
-              const isOpen = openBranchId === branch.id;
-              return (
-                <Collapsible key={branch.id} open={isOpen} onOpenChange={(open) => setOpenBranchId(open ? branch.id : null)}>
-                  <div className="rounded-lg border bg-muted/30">
-                    <CollapsibleTrigger asChild>
-                      <button className="flex w-full items-center justify-between p-4 text-left hover:bg-muted/50 transition-colors rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium text-sm">{branch.name}</p>
-                            <p className="text-xs text-muted-foreground">Prefix: {addr.prefix}</p>
-                          </div>
-                        </div>
-                        {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      </button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="px-4 pb-4 space-y-4 border-t pt-4">
-                        <div className="space-y-2">
-                          <Label className="flex items-center gap-2">
-                            <MapPin className="h-3 w-3" />
-                            Хаягийн угтвар (Prefix)
-                          </Label>
-                          <Input
-                            value={addr.prefix}
-                            onChange={(e) => setBranchAddresses(prev => ({
-                              ...prev,
-                              [branch.id]: { ...prev[branch.id], prefix: e.target.value.toUpperCase() }
-                            }))}
-                            placeholder="ONLY"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Жишээ: {addr.prefix}-88665525
-                          </p>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Хятад агуулахын хаяг</Label>
-                          <Textarea
-                            value={addr.text}
-                            onChange={(e) => setBranchAddresses(prev => ({
-                              ...prev,
-                              [branch.id]: { ...prev[branch.id], text: e.target.value }
-                            }))}
-                            placeholder={`收货人: ...\n手机号码: ...\n所在地区: ...\n详细地址: ...`}
-                            rows={5}
-                          />
-                        </div>
-                        <Button
-                          size="sm"
-                          disabled={savingBranchId === branch.id}
-                          onClick={async () => {
-                            setSavingBranchId(branch.id);
-                            try {
-                              const { error } = await supabase
-                                .from('branches')
-                                .update({
-                                  china_address_prefix: addr.prefix,
-                                  china_address_text: addr.text,
-                                  updated_at: new Date().toISOString(),
-                                })
-                                .eq('id', branch.id);
-                              if (error) throw error;
-                              toast({ title: 'Амжилттай', description: `${branch.name} хаяг хадгалагдлаа` });
-                            } catch {
-                              toast({ title: 'Алдаа', description: 'Хадгалж чадсангүй', variant: 'destructive' });
-                            } finally {
-                              setSavingBranchId(null);
-                            }
-                          }}
-                        >
-                          {savingBranchId === branch.id ? 'Хадгалж байна...' : 'Энэ салбарын хаягийг хадгалах'}
-                        </Button>
-                      </div>
-                    </CollapsibleContent>
-                  </div>
-                </Collapsible>
-              );
-            })}
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>收货人 (Хүлээн авагч)</Label>
+              <Input value={chinaReceiver} onChange={(e) => setChinaReceiver(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>手机号码 (Утас)</Label>
+              <Input value={chinaPhone} onChange={(e) => setChinaPhone(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>所在地区 (Бүс нутаг)</Label>
+              <Input value={chinaRegion} onChange={(e) => setChinaRegion(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>详细地址 (Дэлгэрэнгүй хаяг)</Label>
+              <Textarea value={chinaAddress} onChange={(e) => setChinaAddress(e.target.value)} />
+            </div>
           </CardContent>
         </Card>
 
