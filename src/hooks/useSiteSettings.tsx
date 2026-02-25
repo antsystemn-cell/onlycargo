@@ -3,11 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import type { SiteSetting } from '@/types/cargo';
 import { DEFAULT_TIER_CONFIG, type TieredPricingConfig } from '@/lib/priceCalculation';
 
-interface ChinaWarehouseAddress {
+export interface ChinaWarehouseAddress {
+  id: string;
+  label: string;
   receiver: string;
   phone: string;
   region: string;
   address: string;
+  prefix: string;
 }
 
 interface HomepageBanner {
@@ -29,11 +32,10 @@ interface Pricing {
   per_kg: number;
   per_cubic_meter: number;
   china_per_kg: number;
-  // Tiered pricing configuration
-  tier_weight_threshold: number;      // kg threshold (default: 1000)
-  tier_weight_price: number;          // price per kg above threshold (default: 830)
-  tier_volume_threshold: number;      // m³ threshold (default: 10)
-  tier_volume_price: number;          // price per m³ above threshold (default: 260000)
+  tier_weight_threshold: number;
+  tier_weight_price: number;
+  tier_volume_threshold: number;
+  tier_volume_price: number;
 }
 
 interface PageSeo {
@@ -56,7 +58,7 @@ export interface PaymentIconConfig {
 interface SiteSettingsContextType {
   logoUrl: string;
   faviconUrl: string;
-  chinaWarehouseAddress: ChinaWarehouseAddress;
+  chinaWarehouseAddresses: ChinaWarehouseAddress[];
   homepageBanner: HomepageBanner;
   homepageWidgets: HomepageWidget[];
   pricing: Pricing;
@@ -77,15 +79,22 @@ const defaultPricing: Pricing = {
   tier_volume_price: DEFAULT_TIER_CONFIG.volumeTierPrice,
 };
 
-const defaultSettings: SiteSettingsContextType = {
-  logoUrl: '/placeholder.svg',
-  faviconUrl: '/favicon.ico',
-  chinaWarehouseAddress: {
+const defaultChinaAddresses: ChinaWarehouseAddress[] = [
+  {
+    id: 'default-1',
+    label: 'Эрээн',
     receiver: '唯一OnlyCargo',
     phone: '13694788211',
     region: '内蒙古，锡林郭勒盟，二连浩特市, 肯特街',
     address: '白音布日特物流巴图收',
+    prefix: 'ONLY',
   },
+];
+
+const defaultSettings: SiteSettingsContextType = {
+  logoUrl: '/placeholder.svg',
+  faviconUrl: '/favicon.ico',
+  chinaWarehouseAddresses: defaultChinaAddresses,
   homepageBanner: {
     enabled: true,
     title: 'Онлайн карго үйлчилгээ',
@@ -110,7 +119,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Omit<SiteSettingsContextType, 'refresh' | 'isLoading'>>({
     logoUrl: defaultSettings.logoUrl,
     faviconUrl: defaultSettings.faviconUrl,
-    chinaWarehouseAddress: defaultSettings.chinaWarehouseAddress,
+    chinaWarehouseAddresses: defaultSettings.chinaWarehouseAddresses,
     homepageBanner: defaultSettings.homepageBanner,
     homepageWidgets: defaultSettings.homepageWidgets,
     pricing: defaultSettings.pricing,
@@ -133,7 +142,6 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         
         const pricingData = (settingsMap.get('pricing') as Pricing) || defaultPricing;
         
-        // Merge with defaults to ensure tier fields exist
         const mergedPricing: Pricing = {
           per_kg: pricingData.per_kg ?? defaultPricing.per_kg,
           per_cubic_meter: pricingData.per_cubic_meter ?? defaultPricing.per_cubic_meter,
@@ -144,18 +152,24 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
           tier_volume_price: pricingData.tier_volume_price ?? defaultPricing.tier_volume_price,
         };
 
-        // Build tier config from pricing
         const tierConfig: TieredPricingConfig = {
           weightThreshold: mergedPricing.tier_weight_threshold,
           weightTierPrice: mergedPricing.tier_weight_price,
           volumeThreshold: mergedPricing.tier_volume_threshold,
           volumeTierPrice: mergedPricing.tier_volume_price,
         };
+
+        // Support both old single address format and new array format
+        const rawAddresses = settingsMap.get('china_warehouse_addresses');
+        let chinaWarehouseAddresses: ChinaWarehouseAddress[] = defaultChinaAddresses;
+        if (Array.isArray(rawAddresses) && rawAddresses.length > 0) {
+          chinaWarehouseAddresses = rawAddresses as ChinaWarehouseAddress[];
+        }
         
         setSettings({
           logoUrl: (settingsMap.get('logo_url') as string) || defaultSettings.logoUrl,
           faviconUrl: (settingsMap.get('favicon_url') as string) || defaultSettings.faviconUrl,
-          chinaWarehouseAddress: (settingsMap.get('china_warehouse_address') as ChinaWarehouseAddress) || defaultSettings.chinaWarehouseAddress,
+          chinaWarehouseAddresses,
           homepageBanner: (settingsMap.get('homepage_banner') as HomepageBanner) || defaultSettings.homepageBanner,
           homepageWidgets: (settingsMap.get('homepage_widgets') as HomepageWidget[]) || defaultSettings.homepageWidgets,
           pricing: mergedPricing,

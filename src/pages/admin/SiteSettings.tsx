@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Upload, Save, Image, FileText, MapPin, Calculator, TrendingDown } from 'lucide-react';
+import { Settings, Upload, Save, Image, FileText, MapPin, Calculator, TrendingDown, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,11 +13,11 @@ import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { FaviconSettings } from '@/components/admin/FaviconSettings';
 import { SeoSettings, type SeoSettingsData } from '@/components/admin/SeoSettings';
 import { PaymentIconSettings } from '@/components/admin/PaymentIconSettings';
-import type { PaymentIconConfig } from '@/hooks/useSiteSettings';
+import type { PaymentIconConfig, ChinaWarehouseAddress } from '@/hooks/useSiteSettings';
 
 export default function SiteSettings() {
   const { toast } = useToast();
-  const { logoUrl, faviconUrl, chinaWarehouseAddress, homepageBanner, pricing, paymentIcons, seoSettings, refresh } = useSiteSettings();
+  const { logoUrl, faviconUrl, chinaWarehouseAddresses, homepageBanner, pricing, paymentIcons, seoSettings, refresh } = useSiteSettings();
   const [isSaving, setIsSaving] = useState(false);
 
   // Logo
@@ -31,11 +31,8 @@ export default function SiteSettings() {
   const [uploadingBannerImage, setUploadingBannerImage] = useState(false);
   const bannerImageInputRef = useRef<HTMLInputElement>(null);
 
-  // China address
-  const [chinaReceiver, setChinaReceiver] = useState(chinaWarehouseAddress.receiver);
-  const [chinaPhone, setChinaPhone] = useState(chinaWarehouseAddress.phone);
-  const [chinaRegion, setChinaRegion] = useState(chinaWarehouseAddress.region);
-  const [chinaAddress, setChinaAddress] = useState(chinaWarehouseAddress.address);
+  // China addresses (array)
+  const [chinaAddresses, setChinaAddresses] = useState<ChinaWarehouseAddress[]>(chinaWarehouseAddresses);
 
   // Pricing - Normal rates
   const [pricePerKg, setPricePerKg] = useState(pricing.per_kg.toString());
@@ -60,10 +57,7 @@ export default function SiteSettings() {
     setBannerTitle(homepageBanner.title);
     setBannerDescription(homepageBanner.description);
     setBannerBackgroundImage(homepageBanner.backgroundImage || '');
-    setChinaReceiver(chinaWarehouseAddress.receiver);
-    setChinaPhone(chinaWarehouseAddress.phone);
-    setChinaRegion(chinaWarehouseAddress.region);
-    setChinaAddress(chinaWarehouseAddress.address);
+    setChinaAddresses(chinaWarehouseAddresses);
     setPricePerKg(pricing.per_kg.toString());
     setPricePerCubicMeter(pricing.per_cubic_meter.toString());
     setChinaPricePerKg(pricing.china_per_kg.toString());
@@ -74,7 +68,7 @@ export default function SiteSettings() {
     setCurrentFaviconUrl(faviconUrl);
     setCurrentSeoSettings(seoSettings || {});
     setCurrentPaymentIcons(paymentIcons || {});
-  }, [homepageBanner, chinaWarehouseAddress, pricing, faviconUrl, seoSettings, paymentIcons]);
+  }, [homepageBanner, chinaWarehouseAddresses, pricing, faviconUrl, seoSettings, paymentIcons]);
 
   const handleLogoUpload = async () => {
     if (!logoFile) return null;
@@ -124,6 +118,32 @@ export default function SiteSettings() {
     }
   };
 
+  // China address helpers
+  const addChinaAddress = () => {
+    setChinaAddresses(prev => [
+      ...prev,
+      {
+        id: `addr-${Date.now()}`,
+        label: '',
+        receiver: '',
+        phone: '',
+        region: '',
+        address: '',
+        prefix: 'ONLY',
+      },
+    ]);
+  };
+
+  const removeChinaAddress = (id: string) => {
+    setChinaAddresses(prev => prev.filter(a => a.id !== id));
+  };
+
+  const updateChinaAddress = (id: string, field: keyof ChinaWarehouseAddress, value: string) => {
+    setChinaAddresses(prev =>
+      prev.map(a => (a.id === id ? { ...a, [field]: value } : a))
+    );
+  };
+
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
@@ -137,13 +157,8 @@ export default function SiteSettings() {
         { key: 'logo_url', value: JSON.stringify(newLogoUrl) },
         { key: 'favicon_url', value: JSON.stringify(currentFaviconUrl) },
         {
-          key: 'china_warehouse_address',
-          value: JSON.stringify({
-            receiver: chinaReceiver,
-            phone: chinaPhone,
-            region: chinaRegion,
-            address: chinaAddress,
-          }),
+          key: 'china_warehouse_addresses',
+          value: JSON.stringify(chinaAddresses),
         },
         {
           key: 'homepage_banner',
@@ -308,32 +323,90 @@ export default function SiteSettings() {
           </CardContent>
         </Card>
 
-        {/* China Address Settings */}
-        <Card>
+        {/* China Warehouse Addresses - Multiple */}
+        <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <MapPin className="h-4 w-4" />
-              Хятад агуулахын хаяг
+              Хятад агуулахын хаягууд
             </CardTitle>
-            <CardDescription>Хүлээн авах агуулахын хаяг</CardDescription>
+            <CardDescription>Олон агуулахын хаяг нэмж, хэрэглэгчид сонголт өгнө</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>收货人 (Хүлээн авагч)</Label>
-              <Input value={chinaReceiver} onChange={(e) => setChinaReceiver(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>手机号码 (Утас)</Label>
-              <Input value={chinaPhone} onChange={(e) => setChinaPhone(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>所在地区 (Бүс нутаг)</Label>
-              <Input value={chinaRegion} onChange={(e) => setChinaRegion(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>详细地址 (Дэлгэрэнгүй хаяг)</Label>
-              <Textarea value={chinaAddress} onChange={(e) => setChinaAddress(e.target.value)} />
-            </div>
+            {chinaAddresses.map((addr, idx) => (
+              <div key={addr.id} className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm">Хаяг #{idx + 1}</h4>
+                  {chinaAddresses.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => removeChinaAddress(addr.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Устгах
+                    </Button>
+                  )}
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Нэр / Байршил</Label>
+                    <Input
+                      value={addr.label}
+                      onChange={(e) => updateChinaAddress(addr.id, 'label', e.target.value)}
+                      placeholder="Жишээ: Эрээн агуулах"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Угтвар (Prefix)</Label>
+                    <Input
+                      value={addr.prefix}
+                      onChange={(e) => updateChinaAddress(addr.id, 'prefix', e.target.value.toUpperCase())}
+                      placeholder="ONLY"
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">收货人 (Хүлээн авагч)</Label>
+                    <Input
+                      value={addr.receiver}
+                      onChange={(e) => updateChinaAddress(addr.id, 'receiver', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">手机号码 (Утас)</Label>
+                    <Input
+                      value={addr.phone}
+                      onChange={(e) => updateChinaAddress(addr.id, 'phone', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">所在地区 (Бүс нутаг)</Label>
+                  <Input
+                    value={addr.region}
+                    onChange={(e) => updateChinaAddress(addr.id, 'region', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">详细地址 (Дэлгэрэнгүй хаяг)</Label>
+                  <Textarea
+                    value={addr.address}
+                    onChange={(e) => updateChinaAddress(addr.id, 'address', e.target.value)}
+                    rows={2}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Жишээ: {addr.prefix || 'ONLY'}-88665525
+                </p>
+              </div>
+            ))}
+            <Button variant="outline" className="w-full" onClick={addChinaAddress}>
+              <Plus className="h-4 w-4 mr-2" />
+              Шинэ хаяг нэмэх
+            </Button>
           </CardContent>
         </Card>
 
