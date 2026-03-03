@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.storepay]
 verify_jwt = false
+
+[functions.external-api]
+verify_jwt = false
