@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_key_usage_logs: {
+        Row: {
+          api_key_id: string
+          created_at: string
+          endpoint: string
+          id: string
+          ip_address: string | null
+          status_code: number
+          user_agent: string | null
+        }
+        Insert: {
+          api_key_id: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          ip_address?: string | null
+          status_code: number
+          user_agent?: string | null
+        }
+        Update: {
+          api_key_id?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          ip_address?: string | null
+          status_code?: number
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_key_usage_logs_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_keys: {
+        Row: {
+          allow_phone_search: boolean
+          allow_price: boolean
+          allowed_branches: string[] | null
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          key_hash: string
+          key_prefix: string
+          name: string
+          rate_limit_per_day: number
+          rate_limit_per_minute: number
+          updated_at: string
+        }
+        Insert: {
+          allow_phone_search?: boolean
+          allow_price?: boolean
+          allowed_branches?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash: string
+          key_prefix: string
+          name: string
+          rate_limit_per_day?: number
+          rate_limit_per_minute?: number
+          updated_at?: string
+        }
+        Update: {
+          allow_phone_search?: boolean
+          allow_price?: boolean
+          allowed_branches?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          key_hash?: string
+          key_prefix?: string
+          name?: string
+          rate_limit_per_day?: number
+          rate_limit_per_minute?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       banners: {
         Row: {
           created_at: string
