@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Upload, Save, Image, FileText, MapPin, Calculator, TrendingDown, Plus, Trash2 } from 'lucide-react';
+import { Settings, Upload, Save, Image, FileText, MapPin, Calculator, TrendingDown, Plus, Trash2, Key, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,6 +52,10 @@ export default function SiteSettings() {
   const [currentSeoSettings, setCurrentSeoSettings] = useState<SeoSettingsData>(seoSettings || {});
   const [currentPaymentIcons, setCurrentPaymentIcons] = useState<PaymentIconConfig>(paymentIcons || {});
 
+  // API Keys
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     setBannerEnabled(homepageBanner.enabled);
     setBannerTitle(homepageBanner.title);
@@ -69,6 +73,21 @@ export default function SiteSettings() {
     setCurrentSeoSettings(seoSettings || {});
     setCurrentPaymentIcons(paymentIcons || {});
   }, [homepageBanner, chinaWarehouseAddresses, pricing, faviconUrl, seoSettings, paymentIcons]);
+
+  // Fetch API keys separately
+  useEffect(() => {
+    const fetchApiKeys = async () => {
+      const { data } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'api_keys')
+        .single();
+      if (data?.value && typeof data.value === 'object') {
+        setApiKeys(data.value as Record<string, string>);
+      }
+    };
+    fetchApiKeys();
+  }, []);
 
   const handleLogoUpload = async () => {
     if (!logoFile) return null;
@@ -183,6 +202,7 @@ export default function SiteSettings() {
         },
         { key: 'seo_settings', value: JSON.stringify(currentSeoSettings) },
         { key: 'payment_icons', value: JSON.stringify(currentPaymentIcons) },
+        { key: 'api_keys', value: JSON.stringify(apiKeys) },
       ];
 
       for (const update of updates) {
@@ -549,6 +569,47 @@ export default function SiteSettings() {
 
         {/* Payment Icon Settings */}
         <PaymentIconSettings paymentIcons={currentPaymentIcons} onPaymentIconsChange={setCurrentPaymentIcons} />
+
+        {/* API Key Settings */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Key className="h-4 w-4" />
+              API түлхүүрүүд
+            </CardTitle>
+            <CardDescription>Гуравдагч сервисийн API түлхүүрүүдийг энд оруулна</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[
+              { key: 'openclaw_api_key', label: 'OpenClaw API Key', placeholder: 'sk-...' },
+            ].map(({ key, label, placeholder }) => (
+              <div key={key} className="space-y-1">
+                <Label className="text-sm">{label}</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      type={visibleKeys[key] ? 'text' : 'password'}
+                      value={apiKeys[key] || ''}
+                      onChange={(e) => setApiKeys(prev => ({ ...prev, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setVisibleKeys(prev => ({ ...prev, [key]: !prev[key] }))}
+                  >
+                    {visibleKeys[key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <p className="text-xs text-muted-foreground">
+              API түлхүүрүүд нууцлагдсан байдлаар хадгалагдана. Шаардлагатай бол нэмэлт түлхүүр нэмэх боломжтой.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
