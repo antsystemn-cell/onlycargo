@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Upload, Save, Image, FileText, MapPin, Calculator, TrendingDown, Plus, Trash2, Key, Eye, EyeOff } from 'lucide-react';
+import { Settings, Upload, Save, Image, FileText, MapPin, Calculator, TrendingDown, Plus, Trash2, Key, Eye, EyeOff, RefreshCw, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -55,6 +55,7 @@ export default function SiteSettings() {
   // API Keys
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
     setBannerEnabled(homepageBanner.enabled);
@@ -577,13 +578,13 @@ export default function SiteSettings() {
               <Key className="h-4 w-4" />
               API түлхүүрүүд
             </CardTitle>
-            <CardDescription>Гуравдагч сервисийн API түлхүүрүүдийг энд оруулна</CardDescription>
+            <CardDescription>API түлхүүр автоматаар үүсгэх эсвэл гараар оруулах</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {[
               { key: 'openclaw_api_key', label: 'OpenClaw API Key', placeholder: 'sk-...' },
             ].map(({ key, label, placeholder }) => (
-              <div key={key} className="space-y-1">
+              <div key={key} className="space-y-2">
                 <Label className="text-sm">{label}</Label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -599,14 +600,45 @@ export default function SiteSettings() {
                     variant="outline"
                     size="icon"
                     onClick={() => setVisibleKeys(prev => ({ ...prev, [key]: !prev[key] }))}
+                    title={visibleKeys[key] ? 'Нуух' : 'Харуулах'}
                   >
                     {visibleKeys[key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      const generated = 'sk-' + crypto.randomUUID().replace(/-/g, '');
+                      setApiKeys(prev => ({ ...prev, [key]: generated }));
+                      setVisibleKeys(prev => ({ ...prev, [key]: true }));
+                      toast({ title: 'API key үүсгэгдлээ', description: 'Хадгалах товч дарж хадгалаарай' });
+                    }}
+                    title="Автоматаар үүсгэх"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      if (apiKeys[key]) {
+                        navigator.clipboard.writeText(apiKeys[key]);
+                        setCopiedKey(key);
+                        setTimeout(() => setCopiedKey(null), 2000);
+                        toast({ title: 'Хуулагдлаа!' });
+                      }
+                    }}
+                    title="Хуулах"
+                  >
+                    {copiedKey === key ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
             ))}
             <p className="text-xs text-muted-foreground">
-              API түлхүүрүүд нууцлагдсан байдлаар хадгалагдана. Шаардлагатай бол нэмэлт түлхүүр нэмэх боломжтой.
+              🔄 товч дарж автоматаар үүсгэх, 📋 товч дарж хуулах. Хадгалахаа мартуузай!
             </p>
           </CardContent>
         </Card>
