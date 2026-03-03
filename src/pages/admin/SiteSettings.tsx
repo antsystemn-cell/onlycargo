@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Upload, Save, Image, FileText, MapPin, Calculator, TrendingDown, Plus, Trash2, Key, Eye, EyeOff, RefreshCw, Copy, Check } from 'lucide-react';
+import { Settings, Upload, Save, Image, FileText, MapPin, Calculator, TrendingDown, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,11 +52,6 @@ export default function SiteSettings() {
   const [currentSeoSettings, setCurrentSeoSettings] = useState<SeoSettingsData>(seoSettings || {});
   const [currentPaymentIcons, setCurrentPaymentIcons] = useState<PaymentIconConfig>(paymentIcons || {});
 
-  // API Keys
-  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
-  const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-
   useEffect(() => {
     setBannerEnabled(homepageBanner.enabled);
     setBannerTitle(homepageBanner.title);
@@ -75,20 +70,6 @@ export default function SiteSettings() {
     setCurrentPaymentIcons(paymentIcons || {});
   }, [homepageBanner, chinaWarehouseAddresses, pricing, faviconUrl, seoSettings, paymentIcons]);
 
-  // Fetch API keys separately
-  useEffect(() => {
-    const fetchApiKeys = async () => {
-      const { data } = await supabase
-        .from('site_settings')
-        .select('value')
-        .eq('key', 'api_keys')
-        .single();
-      if (data?.value && typeof data.value === 'object') {
-        setApiKeys(data.value as Record<string, string>);
-      }
-    };
-    fetchApiKeys();
-  }, []);
 
   const handleLogoUpload = async () => {
     if (!logoFile) return null;
@@ -203,7 +184,6 @@ export default function SiteSettings() {
         },
         { key: 'seo_settings', value: JSON.stringify(currentSeoSettings) },
         { key: 'payment_icons', value: JSON.stringify(currentPaymentIcons) },
-        { key: 'api_keys', value: JSON.stringify(apiKeys) },
       ];
 
       for (const update of updates) {
@@ -570,78 +550,6 @@ export default function SiteSettings() {
 
         {/* Payment Icon Settings */}
         <PaymentIconSettings paymentIcons={currentPaymentIcons} onPaymentIconsChange={setCurrentPaymentIcons} />
-
-        {/* API Key Settings */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Key className="h-4 w-4" />
-              API түлхүүрүүд
-            </CardTitle>
-            <CardDescription>API түлхүүр автоматаар үүсгэх эсвэл гараар оруулах</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {[
-              { key: 'openclaw_api_key', label: 'OpenClaw API Key', placeholder: 'sk-...' },
-            ].map(({ key, label, placeholder }) => (
-              <div key={key} className="space-y-2">
-                <Label className="text-sm">{label}</Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Input
-                      type={visibleKeys[key] ? 'text' : 'password'}
-                      value={apiKeys[key] || ''}
-                      onChange={(e) => setApiKeys(prev => ({ ...prev, [key]: e.target.value }))}
-                      placeholder={placeholder}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setVisibleKeys(prev => ({ ...prev, [key]: !prev[key] }))}
-                    title={visibleKeys[key] ? 'Нуух' : 'Харуулах'}
-                  >
-                    {visibleKeys[key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      const generated = 'sk-' + crypto.randomUUID().replace(/-/g, '');
-                      setApiKeys(prev => ({ ...prev, [key]: generated }));
-                      setVisibleKeys(prev => ({ ...prev, [key]: true }));
-                      toast({ title: 'API key үүсгэгдлээ', description: 'Хадгалах товч дарж хадгалаарай' });
-                    }}
-                    title="Автоматаар үүсгэх"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      if (apiKeys[key]) {
-                        navigator.clipboard.writeText(apiKeys[key]);
-                        setCopiedKey(key);
-                        setTimeout(() => setCopiedKey(null), 2000);
-                        toast({ title: 'Хуулагдлаа!' });
-                      }
-                    }}
-                    title="Хуулах"
-                  >
-                    {copiedKey === key ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-            ))}
-            <p className="text-xs text-muted-foreground">
-              🔄 товч дарж автоматаар үүсгэх, 📋 товч дарж хуулах. Хадгалахаа мартуузай!
-            </p>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

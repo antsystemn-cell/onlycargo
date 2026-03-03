@@ -35,6 +35,7 @@ import BannerManagement from "@/pages/admin/BannerManagement";
 import DeliveryZoneManagement from "@/pages/admin/DeliveryZoneManagement";
 import DeliveryOrders from "@/pages/admin/DeliveryOrders";
 import ReferralSettings from "@/pages/admin/ReferralSettings";
+import ApiKeyManagement from "@/pages/admin/ApiKeyManagement";
 
 // China Warehouse Pages
 import ChinaWarehouseRegister from "@/pages/china-warehouse/ChinaWarehouseRegister";
@@ -79,6 +80,7 @@ const App = () => (
               <Route path="delivery-zones" element={<DeliveryZoneManagement />} />
               <Route path="delivery-orders" element={<DeliveryOrders />} />
               <Route path="referral-settings" element={<ReferralSettings />} />
+              <Route path="integrations" element={<ApiKeyManagement />} />
             </Route>
 
             {/* China Warehouse Routes */}
