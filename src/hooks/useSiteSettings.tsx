@@ -137,6 +137,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     logoUrl: defaultSettings.logoUrl,
     faviconUrl: defaultSettings.faviconUrl,
     chinaWarehouseAddresses: defaultSettings.chinaWarehouseAddresses,
+    koreaWarehouseAddresses: defaultSettings.koreaWarehouseAddresses,
     homepageBanner: defaultSettings.homepageBanner,
     homepageWidgets: defaultSettings.homepageWidgets,
     pricing: defaultSettings.pricing,
