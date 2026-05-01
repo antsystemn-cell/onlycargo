@@ -62,6 +62,7 @@ interface SiteSettingsContextType {
   faviconUrl: string;
   chinaWarehouseAddresses: ChinaWarehouseAddress[];
   koreaWarehouseAddresses: KoreaWarehouseAddress[];
+  homepageBanner: HomepageBanner;
   homepageWidgets: HomepageWidget[];
   pricing: Pricing;
   tierConfig: TieredPricingConfig;
