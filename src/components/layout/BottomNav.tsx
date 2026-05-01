@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/', icon: Home, label: 'Нүүр' },
   { href: '/my-cargo', icon: Package, label: 'Миний ачаа' },
-  { href: '/china-address', icon: MapPin, label: 'Хаяг' },
+  { href: '/china-address', icon: MapPin, label: 'Хятад' },
+  { href: '/korea-address', icon: MapPin, label: 'Солонгос' },
   { href: '/profile', icon: User, label: 'Профайл' },
 ];
 
