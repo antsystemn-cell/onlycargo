@@ -147,6 +147,32 @@ export default function SiteSettings() {
     );
   };
 
+  // Korea address helpers
+  const addKoreaAddress = () => {
+    setKoreaAddresses(prev => [
+      ...prev,
+      {
+        id: `korea-${Date.now()}`,
+        label: '',
+        receiver: '',
+        phone: '',
+        region: '',
+        address: '',
+        prefix: 'ONLY',
+      },
+    ]);
+  };
+
+  const removeKoreaAddress = (id: string) => {
+    setKoreaAddresses(prev => prev.filter(a => a.id !== id));
+  };
+
+  const updateKoreaAddress = (id: string, field: keyof KoreaWarehouseAddress, value: string) => {
+    setKoreaAddresses(prev =>
+      prev.map(a => (a.id === id ? { ...a, [field]: value } : a))
+    );
+  };
+
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
