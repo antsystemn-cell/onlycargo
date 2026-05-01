@@ -94,10 +94,23 @@ const defaultChinaAddresses: ChinaWarehouseAddress[] = [
   },
 ];
 
+const defaultKoreaAddresses: KoreaWarehouseAddress[] = [
+  {
+    id: 'korea-default-1',
+    label: 'Инчон агуулах',
+    receiver: 'OnlyCargo Korea',
+    phone: '010-5375-2204',
+    region: '인천광역시 서구 (Incheon Seo-gu)',
+    address: '원당대로205번길 32-8',
+    prefix: 'ONLY',
+  },
+];
+
 const defaultSettings: SiteSettingsContextType = {
   logoUrl: '/placeholder.svg',
   faviconUrl: '/favicon.ico',
   chinaWarehouseAddresses: defaultChinaAddresses,
+  koreaWarehouseAddresses: defaultKoreaAddresses,
   homepageBanner: {
     enabled: true,
     title: 'Онлайн карго үйлчилгээ',
@@ -107,6 +120,7 @@ const defaultSettings: SiteSettingsContextType = {
     { id: 'calculator', title: 'Тооцоолуур', icon: 'calculator', enabled: true },
     { id: 'tracking', title: 'Ачаа хайх', icon: 'search', enabled: true },
     { id: 'address', title: 'Хятад хаяг', icon: 'map-pin', enabled: true },
+    { id: 'korea-address', title: 'Солонгос хаяг', icon: 'map-pin', enabled: true },
   ],
   pricing: defaultPricing,
   tierConfig: DEFAULT_TIER_CONFIG,
