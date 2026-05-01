@@ -183,11 +183,18 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         if (Array.isArray(rawAddresses) && rawAddresses.length > 0) {
           chinaWarehouseAddresses = rawAddresses as ChinaWarehouseAddress[];
         }
+
+        const rawKoreaAddresses = settingsMap.get('korea_warehouse_addresses');
+        let koreaWarehouseAddresses: KoreaWarehouseAddress[] = defaultKoreaAddresses;
+        if (Array.isArray(rawKoreaAddresses) && rawKoreaAddresses.length > 0) {
+          koreaWarehouseAddresses = rawKoreaAddresses as KoreaWarehouseAddress[];
+        }
         
         setSettings({
           logoUrl: (settingsMap.get('logo_url') as string) || defaultSettings.logoUrl,
           faviconUrl: (settingsMap.get('favicon_url') as string) || defaultSettings.faviconUrl,
           chinaWarehouseAddresses,
+          koreaWarehouseAddresses,
           homepageBanner: (settingsMap.get('homepage_banner') as HomepageBanner) || defaultSettings.homepageBanner,
           homepageWidgets: (settingsMap.get('homepage_widgets') as HomepageWidget[]) || defaultSettings.homepageWidgets,
           pricing: mergedPricing,
