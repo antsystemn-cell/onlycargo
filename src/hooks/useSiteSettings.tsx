@@ -61,7 +61,7 @@ interface SiteSettingsContextType {
   logoUrl: string;
   faviconUrl: string;
   chinaWarehouseAddresses: ChinaWarehouseAddress[];
-  homepageBanner: HomepageBanner;
+  koreaWarehouseAddresses: KoreaWarehouseAddress[];
   homepageWidgets: HomepageWidget[];
   pricing: Pricing;
   tierConfig: TieredPricingConfig;
