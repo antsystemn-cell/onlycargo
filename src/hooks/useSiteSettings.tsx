@@ -13,6 +13,8 @@ export interface ChinaWarehouseAddress {
   prefix: string;
 }
 
+export type KoreaWarehouseAddress = ChinaWarehouseAddress;
+
 interface HomepageBanner {
   enabled: boolean;
   title: string;
