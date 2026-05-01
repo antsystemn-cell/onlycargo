@@ -166,7 +166,7 @@ export default function AllCargo() {
 
       const { error } = await supabase
         .from('cargo')
-        .update(updateData)
+        .update(updateData as never)
         .eq('id', cargoId);
 
       if (error) throw error;
