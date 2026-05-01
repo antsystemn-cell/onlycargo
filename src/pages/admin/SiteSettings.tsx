@@ -190,6 +190,10 @@ export default function SiteSettings() {
           value: JSON.stringify(chinaAddresses),
         },
         {
+          key: 'korea_warehouse_addresses',
+          value: JSON.stringify(koreaAddresses),
+        },
+        {
           key: 'homepage_banner',
           value: JSON.stringify({
             enabled: bannerEnabled,
