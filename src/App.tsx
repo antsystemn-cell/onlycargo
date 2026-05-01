@@ -15,6 +15,7 @@ import Home from "@/pages/Home";
 import MyCargo from "@/pages/MyCargo";
 import Calculator from "@/pages/Calculator";
 import ChinaAddress from "@/pages/ChinaAddress";
+import KoreaAddress from "@/pages/KoreaAddress";
 import Profile from "@/pages/Profile";
 import WalletPage from "@/pages/Wallet";
 import ReferralPage from "@/pages/Referral";
@@ -60,6 +61,7 @@ const App = () => (
               <Route path="/my-cargo" element={<MyCargo />} />
               <Route path="/calculator" element={<Calculator />} />
               <Route path="/china-address" element={<ChinaAddress />} />
+              <Route path="/korea-address" element={<KoreaAddress />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/referral" element={<ReferralPage />} />

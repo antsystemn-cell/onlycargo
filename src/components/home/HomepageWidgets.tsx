@@ -16,6 +16,8 @@ const linkMap: Record<string, string> = {
   calculator: '/calculator',
   tracking: '/',
   address: '/china-address',
+  'china-address': '/china-address',
+  'korea-address': '/korea-address',
 };
 
 export default function HomepageWidgets() {
