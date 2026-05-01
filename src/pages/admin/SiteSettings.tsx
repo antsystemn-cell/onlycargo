@@ -443,6 +443,97 @@ export default function SiteSettings() {
           </CardContent>
         </Card>
 
+        {/* Korea Warehouse Addresses - Multiple */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MapPin className="h-4 w-4" />
+              Солонгос агуулахын хаягууд
+            </CardTitle>
+            <CardDescription>Солонгос дахь агуулахын хаягуудыг удирдах</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {koreaAddresses.map((addr, idx) => (
+              <div key={addr.id} className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm">Хаяг #{idx + 1}</h4>
+                  {koreaAddresses.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => removeKoreaAddress(addr.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Устгах
+                    </Button>
+                  )}
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Нэр / Байршил</Label>
+                    <Input
+                      value={addr.label}
+                      onChange={(e) => updateKoreaAddress(addr.id, 'label', e.target.value)}
+                      placeholder="Жишээ: Инчон агуулах"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Угтвар (Prefix)</Label>
+                    <Input
+                      value={addr.prefix}
+                      onChange={(e) => updateKoreaAddress(addr.id, 'prefix', e.target.value.toUpperCase())}
+                      placeholder="ONLY"
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">받는사람 (Хүлээн авагч)</Label>
+                    <Input
+                      value={addr.receiver}
+                      onChange={(e) => updateKoreaAddress(addr.id, 'receiver', e.target.value)}
+                      placeholder="OnlyCargo Korea"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">전화번호 (Утас)</Label>
+                    <Input
+                      value={addr.phone}
+                      onChange={(e) => updateKoreaAddress(addr.id, 'phone', e.target.value)}
+                      placeholder="010-5375-2204"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">지역 (Бүс нутаг)</Label>
+                  <Input
+                    value={addr.region}
+                    onChange={(e) => updateKoreaAddress(addr.id, 'region', e.target.value)}
+                    placeholder="인천광역시 서구"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">상세주소 (Дэлгэрэнгүй хаяг)</Label>
+                  <Textarea
+                    value={addr.address}
+                    onChange={(e) => updateKoreaAddress(addr.id, 'address', e.target.value)}
+                    placeholder="원당대로205번길 32-8"
+                    rows={2}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Жишээ: {addr.prefix || 'ONLY'}-99112233 (хэрэглэгчийн утас)
+                </p>
+              </div>
+            ))}
+            <Button variant="outline" className="w-full" onClick={addKoreaAddress}>
+              <Plus className="h-4 w-4 mr-2" />
+              Шинэ хаяг нэмэх
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Pricing Settings - Normal Rates */}
         <Card>
           <CardHeader>
