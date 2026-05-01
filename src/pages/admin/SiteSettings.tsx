@@ -13,11 +13,11 @@ import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { FaviconSettings } from '@/components/admin/FaviconSettings';
 import { SeoSettings, type SeoSettingsData } from '@/components/admin/SeoSettings';
 import { PaymentIconSettings } from '@/components/admin/PaymentIconSettings';
-import type { PaymentIconConfig, ChinaWarehouseAddress } from '@/hooks/useSiteSettings';
+import type { PaymentIconConfig, ChinaWarehouseAddress, KoreaWarehouseAddress } from '@/hooks/useSiteSettings';
 
 export default function SiteSettings() {
   const { toast } = useToast();
-  const { logoUrl, faviconUrl, chinaWarehouseAddresses, homepageBanner, pricing, paymentIcons, seoSettings, refresh } = useSiteSettings();
+  const { logoUrl, faviconUrl, chinaWarehouseAddresses, koreaWarehouseAddresses, homepageBanner, pricing, paymentIcons, seoSettings, refresh } = useSiteSettings();
   const [isSaving, setIsSaving] = useState(false);
 
   // Logo
@@ -33,6 +33,7 @@ export default function SiteSettings() {
 
   // China addresses (array)
   const [chinaAddresses, setChinaAddresses] = useState<ChinaWarehouseAddress[]>(chinaWarehouseAddresses);
+  const [koreaAddresses, setKoreaAddresses] = useState<KoreaWarehouseAddress[]>(koreaWarehouseAddresses);
 
   // Pricing - Normal rates
   const [pricePerKg, setPricePerKg] = useState(pricing.per_kg.toString());
@@ -58,6 +59,7 @@ export default function SiteSettings() {
     setBannerDescription(homepageBanner.description);
     setBannerBackgroundImage(homepageBanner.backgroundImage || '');
     setChinaAddresses(chinaWarehouseAddresses);
+    setKoreaAddresses(koreaWarehouseAddresses);
     setPricePerKg(pricing.per_kg.toString());
     setPricePerCubicMeter(pricing.per_cubic_meter.toString());
     setChinaPricePerKg(pricing.china_per_kg.toString());
@@ -68,7 +70,7 @@ export default function SiteSettings() {
     setCurrentFaviconUrl(faviconUrl);
     setCurrentSeoSettings(seoSettings || {});
     setCurrentPaymentIcons(paymentIcons || {});
-  }, [homepageBanner, chinaWarehouseAddresses, pricing, faviconUrl, seoSettings, paymentIcons]);
+  }, [homepageBanner, chinaWarehouseAddresses, koreaWarehouseAddresses, pricing, faviconUrl, seoSettings, paymentIcons]);
 
 
   const handleLogoUpload = async () => {
