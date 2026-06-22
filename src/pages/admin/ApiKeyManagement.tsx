@@ -177,6 +177,9 @@ export default function ApiKeyManagement() {
         rate_limit_per_minute: parseInt(newRateMinute) || 60,
         rate_limit_per_day: parseInt(newRateDay) || 10000,
         expires_at: newExpiresAt || null,
+        merchant_id: newMerchantId.trim() || null,
+        allowed_customer_codes: newCustomerCodes
+          .split(',').map(s => s.trim()).filter(Boolean),
         created_by: userData?.user?.id || null,
       };
 
