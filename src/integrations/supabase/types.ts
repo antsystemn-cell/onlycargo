@@ -57,6 +57,7 @@ export type Database = {
           allow_phone_search: boolean
           allow_price: boolean
           allowed_branches: string[] | null
+          allowed_customer_codes: string[]
           created_at: string
           created_by: string | null
           expires_at: string | null
@@ -64,6 +65,9 @@ export type Database = {
           is_active: boolean
           key_hash: string
           key_prefix: string
+          last_used_at: string | null
+          last_used_ip: string | null
+          merchant_id: string | null
           name: string
           rate_limit_per_day: number
           rate_limit_per_minute: number
@@ -73,6 +77,7 @@ export type Database = {
           allow_phone_search?: boolean
           allow_price?: boolean
           allowed_branches?: string[] | null
+          allowed_customer_codes?: string[]
           created_at?: string
           created_by?: string | null
           expires_at?: string | null
@@ -80,6 +85,9 @@ export type Database = {
           is_active?: boolean
           key_hash: string
           key_prefix: string
+          last_used_at?: string | null
+          last_used_ip?: string | null
+          merchant_id?: string | null
           name: string
           rate_limit_per_day?: number
           rate_limit_per_minute?: number
@@ -89,6 +97,7 @@ export type Database = {
           allow_phone_search?: boolean
           allow_price?: boolean
           allowed_branches?: string[] | null
+          allowed_customer_codes?: string[]
           created_at?: string
           created_by?: string | null
           expires_at?: string | null
@@ -96,6 +105,9 @@ export type Database = {
           is_active?: boolean
           key_hash?: string
           key_prefix?: string
+          last_used_at?: string | null
+          last_used_ip?: string | null
+          merchant_id?: string | null
           name?: string
           rate_limit_per_day?: number
           rate_limit_per_minute?: number
@@ -189,10 +201,13 @@ export type Database = {
           branch_id: string | null
           created_at: string
           cubic_meter_price: number | null
+          customer_code: string | null
+          external_ref: string | null
           height: number | null
           id: string
           kg_price: number | null
           length: number | null
+          merchant_id: string | null
           notes: string | null
           payment_id: string | null
           phone_number: string
@@ -213,10 +228,13 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           cubic_meter_price?: number | null
+          customer_code?: string | null
+          external_ref?: string | null
           height?: number | null
           id?: string
           kg_price?: number | null
           length?: number | null
+          merchant_id?: string | null
           notes?: string | null
           payment_id?: string | null
           phone_number: string
@@ -237,10 +255,13 @@ export type Database = {
           branch_id?: string | null
           created_at?: string
           cubic_meter_price?: number | null
+          customer_code?: string | null
+          external_ref?: string | null
           height?: number | null
           id?: string
           kg_price?: number | null
           length?: number | null
+          merchant_id?: string | null
           notes?: string | null
           payment_id?: string | null
           phone_number?: string

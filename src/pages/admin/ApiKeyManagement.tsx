@@ -34,6 +34,10 @@ interface ApiKeyRow {
   rate_limit_per_minute: number;
   rate_limit_per_day: number;
   expires_at: string | null;
+  merchant_id: string | null;
+  allowed_customer_codes: string[];
+  last_used_at: string | null;
+  last_used_ip: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -72,6 +76,8 @@ export default function ApiKeyManagement() {
   // Create form
   const [newName, setNewName] = useState('');
   const [newBranches, setNewBranches] = useState<string[]>([]);
+  const [newMerchantId, setNewMerchantId] = useState('');
+  const [newCustomerCodes, setNewCustomerCodes] = useState('');
   const [newAllowPhone, setNewAllowPhone] = useState(false);
   const [newAllowPrice, setNewAllowPrice] = useState(false);
   const [newRateMinute, setNewRateMinute] = useState('60');
@@ -171,6 +177,9 @@ export default function ApiKeyManagement() {
         rate_limit_per_minute: parseInt(newRateMinute) || 60,
         rate_limit_per_day: parseInt(newRateDay) || 10000,
         expires_at: newExpiresAt || null,
+        merchant_id: newMerchantId.trim() || null,
+        allowed_customer_codes: newCustomerCodes
+          .split(',').map(s => s.trim()).filter(Boolean),
         created_by: userData?.user?.id || null,
       };
 
@@ -229,6 +238,8 @@ export default function ApiKeyManagement() {
   const resetCreateForm = () => {
     setNewName('');
     setNewBranches([]);
+    setNewMerchantId('');
+    setNewCustomerCodes('');
     setNewAllowPhone(false);
     setNewAllowPrice(false);
     setNewRateMinute('60');
@@ -350,6 +361,29 @@ export default function ApiKeyManagement() {
                           </label>
                         ))}
                       </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                      <Label>Merchant ID (заавал биш)</Label>
+                      <Input
+                        value={newMerchantId}
+                        onChange={(e) => setNewMerchantId(e.target.value)}
+                        placeholder="Жишээ: only-hub"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Бөглөвөл зөвхөн энэ merchant-д хамаарах ачаа л харагдана
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Customer codes (таслалаар тусгаарлана, заавал биш)</Label>
+                      <Input
+                        value={newCustomerCodes}
+                        onChange={(e) => setNewCustomerCodes(e.target.value)}
+                        placeholder="CUS001, CUS002"
+                      />
                     </div>
 
                     <Separator />
@@ -609,32 +643,66 @@ export default function ApiKeyManagement() {
             <Separator />
 
             <div className="space-y-2">
-              <p className="font-semibold">Endpoints:</p>
-
+              <p className="font-semibold">Shipment endpoints:</p>
               <div className="space-y-1">
-                <code className="text-xs text-primary">GET /cargo/by-tracking?trackNumber=XXXX</code>
-                <p className="text-xs text-muted-foreground pl-4">Tracking дугаараар ачаа хайх</p>
+                <code className="text-xs text-primary">GET /shipments</code>
+                <p className="text-xs text-muted-foreground pl-4">
+                  Жагсаалт. Query: page, pageSize (max 100), sort, order, status, q,
+                  merchant_id, customer_code, from, to
+                </p>
               </div>
-
               <div className="space-y-1">
-                <code className="text-xs text-primary">GET /cargo/by-phone?phone=88665525</code>
-                <p className="text-xs text-muted-foreground pl-4">Утасны дугаараар хайх (зөвшөөрөл шаардлагатай)</p>
+                <code className="text-xs text-primary">GET /shipments/:trackNumber</code>
+                <p className="text-xs text-muted-foreground pl-4">Дэлгэрэнгүй</p>
               </div>
-
               <div className="space-y-1">
-                <code className="text-xs text-primary">GET /cargo/history?trackNumber=XXXX</code>
-                <p className="text-xs text-muted-foreground pl-4">Ачааны статусын түүх</p>
+                <code className="text-xs text-primary">GET /shipments/:trackNumber/status</code>
               </div>
-
               <div className="space-y-1">
-                <code className="text-xs text-primary">POST /cargo/status</code>
-                <p className="text-xs text-muted-foreground pl-4">{'{ track_number, status }'} - Статус шинэчлэх</p>
+                <code className="text-xs text-primary">GET /shipments/:trackNumber/fee</code>
+                <p className="text-xs text-muted-foreground pl-4">allow_price шаардлагатай</p>
               </div>
-
+              <div className="space-y-1">
+                <code className="text-xs text-primary">GET /shipments/:trackNumber/history</code>
+              </div>
+              <div className="space-y-1">
+                <code className="text-xs text-primary">GET /shipments/:trackNumber/images</code>
+              </div>
+              <div className="space-y-1">
+                <code className="text-xs text-primary">GET /shipments/:trackNumber/location</code>
+              </div>
+              <div className="space-y-1">
+                <code className="text-xs text-primary">POST /shipments/:trackNumber/status</code>
+                <p className="text-xs text-muted-foreground pl-4">{'{ status }'} — стандарт статусаар шинэчлэх</p>
+              </div>
               <div className="space-y-1">
                 <code className="text-xs text-primary">GET /health</code>
-                <p className="text-xs text-muted-foreground pl-4">Health check</p>
               </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-1">
+              <p className="font-semibold">Стандарт статусууд:</p>
+              <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                <li><code>created</code> — бүртгэгдсэн</li>
+                <li><code>received</code> — Эрээнд хүлээн авсан</li>
+                <li><code>in_transit</code> — тээвэрлэгдэж байна</li>
+                <li><code>processing</code> — агуулахад боловсруулж байна</li>
+                <li><code>ready_for_pickup</code> / <code>arrived</code> — агуулахад бэлэн</li>
+                <li><code>completed</code> — хүлээлгэж өгсөн</li>
+                <li><code>archived</code> — архивлагдсан (read-only)</li>
+              </ul>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-1">
+              <p className="font-semibold">Жишээ curl:</p>
+              <code className="block bg-background p-2 rounded text-xs whitespace-pre-wrap">
+{`curl -H "Authorization: Bearer sk-..." \\
+  "https://xgyalkuyuontavstyokg.supabase.co/functions/v1/external-api/shipments?pageSize=20&status=in_transit"`}
+              </code>
             </div>
 
             <Separator />
@@ -642,22 +710,30 @@ export default function ApiKeyManagement() {
             <div className="space-y-1">
               <p className="font-semibold">Нууцлал:</p>
               <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
-                <li>Утасны дугаар: 8866**** гэж маскладсан</li>
-                <li>Үнийн мэдээлэл: key тохиргоогоор хянагдана</li>
-                <li>Админ тэмдэглэл, хэрэглэгчийн мэдээлэл: хэзээ ч харуулахгүй</li>
+                <li>Утас: 8866**** маскладсан</li>
+                <li>Үнэ: key тохиргооноос хамаарна</li>
+                <li>Админ тэмдэглэл, дотоод ID: хэзээ ч буцаахгүй</li>
+                <li>Merchant scope бүхий key зөвхөн өөрийн ачааг харна</li>
               </ul>
             </div>
 
             <Separator />
 
             <div className="space-y-1">
-              <p className="font-semibold">Алдааны хариу:</p>
+              <p className="font-semibold">Хариуны код:</p>
               <div className="text-xs space-y-1 font-mono">
-                <p>401: {'{ "error": "Invalid API key" }'}</p>
-                <p>403: {'{ "error": "Phone search is not enabled for this API key" }'}</p>
-                <p>429: {'{ "error": "Rate limit exceeded" }'}</p>
-                <p>404: {'{ "error": "Cargo not found" }'}</p>
+                <p>200 OK · 400 буруу параметр · 401 түлхүүр буруу · 403 эрх хүрэхгүй</p>
+                <p>404 олдсонгүй · 429 rate limit (Retry-After) · 5xx Retry-After: 1</p>
               </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-1">
+              <p className="font-semibold">Хуучин endpoint (backward compatible):</p>
+              <code className="text-xs text-muted-foreground block">
+                GET /cargo/by-tracking · /cargo/by-phone · /cargo/history · POST /cargo/status
+              </code>
             </div>
           </div>
         </CardContent>

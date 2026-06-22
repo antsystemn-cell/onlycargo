@@ -2,31 +2,68 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-api-key",
+    "authorization, x-client-info, apikey, content-type, x-api-key, idempotency-key",
 };
 
-function jsonResponse(data: unknown, status = 200) {
+function jsonResponse(data: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
-// SHA-256 hash
 async function hashKey(key: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(key);
+  const data = new TextEncoder().encode(key);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
 
-function maskPhone(phone: string): string {
+function maskPhone(phone: string | null): string {
   if (!phone || phone.length < 4) return "****";
   return phone.slice(0, 4) + "****";
 }
+
+// ===== Status mapping (internal <-> external) =====
+type InternalStatus =
+  | "registered" | "received_ereen" | "transporting"
+  | "warehouse_processing" | "ready_warehouse" | "completed";
+
+type ExternalStatus =
+  | "created" | "received" | "processing" | "in_transit"
+  | "arrived" | "ready_for_pickup" | "completed" | "archived";
+
+const INTERNAL_TO_EXTERNAL: Record<InternalStatus, ExternalStatus> = {
+  registered: "created",
+  received_ereen: "received",
+  transporting: "in_transit",
+  warehouse_processing: "processing",
+  ready_warehouse: "ready_for_pickup",
+  completed: "completed",
+};
+
+const EXTERNAL_TO_INTERNAL: Record<ExternalStatus, InternalStatus | null> = {
+  created: "registered",
+  received: "received_ereen",
+  processing: "warehouse_processing",
+  in_transit: "transporting",
+  arrived: "ready_warehouse",
+  ready_for_pickup: "ready_warehouse",
+  completed: "completed",
+  archived: null, // not applied internally
+};
+
+const STATUS_LOCATION: Record<InternalStatus, string> = {
+  registered: "Эрээн агуулах (бүртгэл)",
+  received_ereen: "Эрээн агуулах",
+  transporting: "Замд",
+  warehouse_processing: "УБ агуулах (боловсруулж байна)",
+  ready_warehouse: "УБ агуулах (бэлэн)",
+  completed: "Хүлээлгэж өгсөн",
+};
 
 interface ApiKeyRecord {
   id: string;
@@ -39,76 +76,46 @@ interface ApiKeyRecord {
   rate_limit_per_minute: number;
   rate_limit_per_day: number;
   expires_at: string | null;
+  merchant_id: string | null;
+  allowed_customer_codes: string[];
 }
 
-async function validateApiKey(
-  supabase: any,
-  rawKey: string
-): Promise<{ valid: false; error: string; status: number } | { valid: true; apiKey: ApiKeyRecord }> {
+async function validateApiKey(supabase: any, rawKey: string) {
   const keyHash = await hashKey(rawKey);
-
   const { data, error } = await supabase
     .from("api_keys")
     .select("*")
     .eq("key_hash", keyHash)
-    .single();
+    .maybeSingle();
 
-  if (error || !data) {
-    return { valid: false, error: "Invalid API key", status: 401 };
-  }
+  if (error || !data) return { valid: false as const, error: "Invalid API key", status: 401 };
+  if (!data.is_active) return { valid: false as const, error: "API key is disabled", status: 401 };
+  if (data.expires_at && new Date(data.expires_at) < new Date())
+    return { valid: false as const, error: "API key has expired", status: 401 };
 
-  if (!data.is_active) {
-    return { valid: false, error: "API key is disabled", status: 401 };
-  }
-
-  if (data.expires_at && new Date(data.expires_at) < new Date()) {
-    return { valid: false, error: "API key has expired", status: 401 };
-  }
-
-  return { valid: true, apiKey: data as ApiKeyRecord };
+  return { valid: true as const, apiKey: data as ApiKeyRecord };
 }
 
-async function checkRateLimit(
-  supabase: any,
-  apiKeyId: string,
-  perMinute: number,
-  perDay: number
-): Promise<boolean> {
-  const now = new Date();
-  const oneMinuteAgo = new Date(now.getTime() - 60000).toISOString();
-  const oneDayAgo = new Date(now.getTime() - 86400000).toISOString();
+async function checkRateLimit(supabase: any, apiKeyId: string, perMinute: number, perDay: number) {
+  const now = Date.now();
+  const oneMinuteAgo = new Date(now - 60_000).toISOString();
+  const oneDayAgo = new Date(now - 86_400_000).toISOString();
 
-  // Check per-minute
-  const { count: minuteCount } = await supabase
-    .from("api_key_usage_logs")
-    .select("*", { count: "exact", head: true })
-    .eq("api_key_id", apiKeyId)
-    .gte("created_at", oneMinuteAgo);
+  const [{ count: minCount }, { count: dayCount }] = await Promise.all([
+    supabase.from("api_key_usage_logs").select("*", { count: "exact", head: true })
+      .eq("api_key_id", apiKeyId).gte("created_at", oneMinuteAgo),
+    supabase.from("api_key_usage_logs").select("*", { count: "exact", head: true })
+      .eq("api_key_id", apiKeyId).gte("created_at", oneDayAgo),
+  ]);
 
-  if ((minuteCount || 0) >= perMinute) return false;
-
-  // Check per-day
-  const { count: dayCount } = await supabase
-    .from("api_key_usage_logs")
-    .select("*", { count: "exact", head: true })
-    .eq("api_key_id", apiKeyId)
-    .gte("created_at", oneDayAgo);
-
-  if ((dayCount || 0) >= perDay) return false;
-
-  return true;
+  if ((minCount || 0) >= perMinute) return { ok: false, retryAfter: 60 };
+  if ((dayCount || 0) >= perDay) return { ok: false, retryAfter: 3600 };
+  return { ok: true, retryAfter: 0 };
 }
 
-async function logUsage(
-  supabase: any,
-  apiKeyId: string,
-  endpoint: string,
-  statusCode: number,
-  req: Request
-) {
+async function logUsage(supabase: any, apiKeyId: string, endpoint: string, statusCode: number, req: Request) {
   const ip = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
   const userAgent = req.headers.get("user-agent") || "unknown";
-
   await supabase.from("api_key_usage_logs").insert({
     api_key_id: apiKeyId,
     endpoint,
@@ -116,277 +123,345 @@ async function logUsage(
     ip_address: ip,
     user_agent: userAgent,
   });
+  await supabase.from("api_keys")
+    .update({ last_used_at: new Date().toISOString(), last_used_ip: ip })
+    .eq("id", apiKeyId);
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+function applyKeyScope(query: any, apiKey: ApiKeyRecord) {
+  if (apiKey.allowed_branches?.length) query = query.in("branch_id", apiKey.allowed_branches);
+  if (apiKey.merchant_id) query = query.eq("merchant_id", apiKey.merchant_id);
+  if (apiKey.allowed_customer_codes?.length) query = query.in("customer_code", apiKey.allowed_customer_codes);
+  return query;
+}
+
+function shipmentDto(c: any, apiKey: ApiKeyRecord) {
+  const internal = c.status as InternalStatus;
+  const dto: Record<string, any> = {
+    trackNumber: c.track_number,
+    status: INTERNAL_TO_EXTERNAL[internal] ?? c.status,
+    statusUpdatedAt: c.status_date,
+    phone: maskPhone(c.phone_number),
+    merchantId: c.merchant_id ?? null,
+    customerCode: c.customer_code ?? null,
+    externalRef: c.external_ref ?? null,
+    weight: c.weight,
+    dimensions: c.length && c.width && c.height
+      ? { length: c.length, width: c.width, height: c.height }
+      : null,
+    location: STATUS_LOCATION[internal] ?? null,
+    branchId: c.branch_id,
+    createdAt: c.created_at,
+    updatedAt: c.updated_at,
+  };
+  if (apiKey.allow_price) {
+    dto.fee = {
+      total: c.price,
+      cubicMeters: c.total_cubic_meters,
+      weightPrice: c.weight && c.kg_price ? Number(c.weight) * Number(c.kg_price) : null,
+      volumePrice: c.total_cubic_meters && c.cubic_meter_price
+        ? Number(c.total_cubic_meters) * Number(c.cubic_meter_price) : null,
+    };
   }
+  return dto;
+}
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
+const SHIPMENT_COLUMNS =
+  "id, track_number, phone_number, status, status_date, weight, length, width, height, " +
+  "price, cubic_meter_price, kg_price, total_cubic_meters, branch_id, merchant_id, " +
+  "customer_code, external_ref, created_at, updated_at";
 
-  // Extract API key from header
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  // Auth
   const authHeader = req.headers.get("authorization");
   const xApiKey = req.headers.get("x-api-key");
   let rawKey = "";
-
-  if (authHeader?.startsWith("Bearer ")) {
-    rawKey = authHeader.slice(7);
-  } else if (xApiKey) {
-    rawKey = xApiKey;
-  }
+  if (authHeader?.startsWith("Bearer ")) rawKey = authHeader.slice(7);
+  else if (xApiKey) rawKey = xApiKey;
 
   if (!rawKey) {
     return jsonResponse({ error: "Missing API key. Use Authorization: Bearer {key} or X-API-Key header" }, 401);
   }
 
-  // Validate API key
   const validation = await validateApiKey(supabase, rawKey);
-  if (!validation.valid) {
-    return jsonResponse({ error: validation.error }, validation.status);
-  }
-
+  if (!validation.valid) return jsonResponse({ error: validation.error }, validation.status);
   const apiKey = validation.apiKey;
 
-  // Check rate limit
-  const withinLimit = await checkRateLimit(
-    supabase,
-    apiKey.id,
-    apiKey.rate_limit_per_minute,
-    apiKey.rate_limit_per_day
-  );
-  if (!withinLimit) {
+  const rl = await checkRateLimit(supabase, apiKey.id, apiKey.rate_limit_per_minute, apiKey.rate_limit_per_day);
+  if (!rl.ok) {
     await logUsage(supabase, apiKey.id, "rate_limited", 429, req);
-    return jsonResponse({ error: "Rate limit exceeded. Please try again later." }, 429);
+    return jsonResponse({ error: "Rate limit exceeded" }, 429, { "Retry-After": String(rl.retryAfter) });
   }
 
-  // Parse URL path
   const url = new URL(req.url);
-  const pathParts = url.pathname.split("/").filter(Boolean);
-  // /external-api/{resource}/{action}
-  const resource = pathParts[1] || "";
-  const action = pathParts[2] || "";
+  // Path layout: /external-api/<resource>/<...>
+  const parts = url.pathname.split("/").filter(Boolean);
+  // strip the function name
+  const idx = parts.indexOf("external-api");
+  const route = idx >= 0 ? parts.slice(idx + 1) : parts;
+  const [resource, sub, subsub] = route;
 
   try {
-    // GET /external-api/health
+    // GET /health
     if (resource === "health") {
       await logUsage(supabase, apiKey.id, "/health", 200, req);
       return jsonResponse({ status: "ok", timestamp: new Date().toISOString() });
     }
 
-    // GET /external-api/cargo/by-tracking?trackNumber=XXX
-    if (resource === "cargo" && action === "by-tracking" && req.method === "GET") {
-      const trackNumber = url.searchParams.get("trackNumber");
-      if (!trackNumber) {
-        await logUsage(supabase, apiKey.id, "/cargo/by-tracking", 400, req);
-        return jsonResponse({ error: "trackNumber query parameter is required" }, 400);
-      }
+    // ===== /shipments =====
+    if (resource === "shipments") {
+      // GET /shipments
+      if (!sub && req.method === "GET") {
+        const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
+        const pageSize = Math.min(100, Math.max(1, parseInt(url.searchParams.get("pageSize") || "20", 10)));
+        const sort = ["created_at", "status_date"].includes(url.searchParams.get("sort") || "")
+          ? url.searchParams.get("sort")! : "created_at";
+        const order = url.searchParams.get("order") === "asc";
+        const extStatus = url.searchParams.get("status") as ExternalStatus | null;
+        const q = url.searchParams.get("q");
+        const merchantId = url.searchParams.get("merchant_id");
+        const customerCode = url.searchParams.get("customer_code");
+        const from = url.searchParams.get("from");
+        const to = url.searchParams.get("to");
 
-      let query = supabase
-        .from("cargo")
-        .select("id, track_number, phone_number, status, status_date, weight, length, width, height, price, branch_id, created_at, updated_at")
-        .eq("track_number", trackNumber);
+        let query = supabase.from("cargo").select(SHIPMENT_COLUMNS, { count: "exact" });
+        query = applyKeyScope(query, apiKey);
 
-      // Branch scoping
-      if (apiKey.allowed_branches && apiKey.allowed_branches.length > 0) {
-        query = query.in("branch_id", apiKey.allowed_branches);
-      }
-
-      const { data, error } = await query.limit(1).maybeSingle();
-      if (error) throw error;
-
-      if (!data) {
-        await logUsage(supabase, apiKey.id, "/cargo/by-tracking", 404, req);
-        return jsonResponse({ error: "Cargo not found" }, 404);
-      }
-
-      // Apply privacy rules
-      const result: Record<string, any> = {
-        trackNumber: data.track_number,
-        status: data.status,
-        statusUpdatedAt: data.status_date,
-        weight: data.weight,
-        dimensions: data.length && data.width && data.height
-          ? { length: data.length, width: data.width, height: data.height }
-          : null,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      };
-
-      // Mask phone
-      result.phone = maskPhone(data.phone_number);
-
-      // Price only if allowed
-      if (apiKey.allow_price) {
-        result.price = data.price;
-      }
-
-      await logUsage(supabase, apiKey.id, "/cargo/by-tracking", 200, req);
-      return jsonResponse({ data: result });
-    }
-
-    // GET /external-api/cargo/by-phone?phone=XXXXXXXX
-    if (resource === "cargo" && action === "by-phone" && req.method === "GET") {
-      if (!apiKey.allow_phone_search) {
-        await logUsage(supabase, apiKey.id, "/cargo/by-phone", 403, req);
-        return jsonResponse({ error: "Phone search is not enabled for this API key" }, 403);
-      }
-
-      const phone = url.searchParams.get("phone");
-      if (!phone) {
-        await logUsage(supabase, apiKey.id, "/cargo/by-phone", 400, req);
-        return jsonResponse({ error: "phone query parameter is required" }, 400);
-      }
-
-      let query = supabase
-        .from("cargo")
-        .select("id, track_number, phone_number, status, status_date, weight, price, branch_id, created_at")
-        .eq("phone_number", phone);
-
-      if (apiKey.allowed_branches && apiKey.allowed_branches.length > 0) {
-        query = query.in("branch_id", apiKey.allowed_branches);
-      }
-
-      const { data, error } = await query.order("created_at", { ascending: false }).limit(50);
-      if (error) throw error;
-
-      const results = (data || []).map((c: any) => ({
-        trackNumber: c.track_number,
-        status: c.status,
-        statusUpdatedAt: c.status_date,
-        phone: maskPhone(c.phone_number),
-        weight: c.weight,
-        price: apiKey.allow_price ? c.price : undefined,
-        createdAt: c.created_at,
-      }));
-
-      await logUsage(supabase, apiKey.id, "/cargo/by-phone", 200, req);
-      return jsonResponse({ data: results, total: results.length });
-    }
-
-    // GET /external-api/cargo/history?trackNumber=XXX
-    if (resource === "cargo" && action === "history" && req.method === "GET") {
-      const trackNumber = url.searchParams.get("trackNumber");
-      if (!trackNumber) {
-        await logUsage(supabase, apiKey.id, "/cargo/history", 400, req);
-        return jsonResponse({ error: "trackNumber query parameter is required" }, 400);
-      }
-
-      // First find cargo and check branch access
-      let cargoQuery = supabase
-        .from("cargo")
-        .select("id, branch_id")
-        .eq("track_number", trackNumber);
-
-      if (apiKey.allowed_branches && apiKey.allowed_branches.length > 0) {
-        cargoQuery = cargoQuery.in("branch_id", apiKey.allowed_branches);
-      }
-
-      const { data: cargo } = await cargoQuery.maybeSingle();
-      if (!cargo) {
-        await logUsage(supabase, apiKey.id, "/cargo/history", 404, req);
-        return jsonResponse({ error: "Cargo not found" }, 404);
-      }
-
-      const { data: history, error } = await supabase
-        .from("cargo_status_history")
-        .select("status, created_at, notes")
-        .eq("cargo_id", cargo.id)
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-
-      const results = (history || []).map((h: any) => ({
-        status: h.status,
-        timestamp: h.created_at,
-        notes: null, // Don't expose admin notes externally
-      }));
-
-      await logUsage(supabase, apiKey.id, "/cargo/history", 200, req);
-      return jsonResponse({ data: results });
-    }
-
-    // GET /external-api/cargo/search (legacy, keep backward compat)
-    if (resource === "cargo" && req.method === "GET" && !action) {
-      const trackNumber = url.searchParams.get("track_number");
-      const phone = url.searchParams.get("phone");
-
-      if (!trackNumber && !phone) {
-        await logUsage(supabase, apiKey.id, "/cargo/search", 400, req);
-        return jsonResponse({ error: "Provide track_number or phone query parameter" }, 400);
-      }
-
-      let query = supabase
-        .from("cargo")
-        .select("id, track_number, phone_number, status, status_date, weight, length, width, height, price, created_at");
-
-      if (trackNumber) query = query.eq("track_number", trackNumber);
-      if (phone) {
-        if (!apiKey.allow_phone_search) {
-          await logUsage(supabase, apiKey.id, "/cargo/search", 403, req);
-          return jsonResponse({ error: "Phone search not enabled for this key" }, 403);
+        if (extStatus) {
+          const internal = EXTERNAL_TO_INTERNAL[extStatus];
+          if (internal) query = query.eq("status", internal);
         }
-        query = query.eq("phone_number", phone);
+        if (merchantId) query = query.eq("merchant_id", merchantId);
+        if (customerCode) query = query.eq("customer_code", customerCode);
+        if (from) query = query.gte("created_at", from);
+        if (to) query = query.lte("created_at", to);
+        if (q) {
+          if (apiKey.allow_phone_search) {
+            query = query.or(`track_number.ilike.%${q}%,phone_number.ilike.%${q}%`);
+          } else {
+            query = query.ilike("track_number", `%${q}%`);
+          }
+        }
+
+        const fromIdx = (page - 1) * pageSize;
+        const toIdx = fromIdx + pageSize - 1;
+        const { data, count, error } = await query.order(sort, { ascending: order }).range(fromIdx, toIdx);
+        if (error) throw error;
+
+        const items = (data || []).map((c: any) => shipmentDto(c, apiKey));
+        await logUsage(supabase, apiKey.id, "/shipments", 200, req);
+        return jsonResponse({
+          data: items,
+          meta: { page, pageSize, total: count || 0, hasMore: (count || 0) > page * pageSize },
+        });
       }
 
-      if (apiKey.allowed_branches && apiKey.allowed_branches.length > 0) {
-        query = query.in("branch_id", apiKey.allowed_branches);
+      // /shipments/:trackNumber/...
+      if (sub) {
+        // Resolve cargo with scoping
+        let lookup = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("track_number", sub);
+        lookup = applyKeyScope(lookup, apiKey);
+        const { data: cargo, error: lookupErr } = await lookup.maybeSingle();
+        if (lookupErr) throw lookupErr;
+        if (!cargo) {
+          await logUsage(supabase, apiKey.id, `/shipments/${subsub || "detail"}`, 404, req);
+          return jsonResponse({ error: "Shipment not found" }, 404);
+        }
+
+        // GET /shipments/:track
+        if (!subsub && req.method === "GET") {
+          await logUsage(supabase, apiKey.id, "/shipments/:track", 200, req);
+          return jsonResponse({ data: shipmentDto(cargo, apiKey) });
+        }
+
+        // GET /shipments/:track/status
+        if (subsub === "status" && req.method === "GET") {
+          const internal = cargo.status as InternalStatus;
+          await logUsage(supabase, apiKey.id, "/shipments/:track/status", 200, req);
+          return jsonResponse({
+            data: {
+              trackNumber: cargo.track_number,
+              status: INTERNAL_TO_EXTERNAL[internal] ?? cargo.status,
+              statusUpdatedAt: cargo.status_date,
+            },
+          });
+        }
+
+        // GET /shipments/:track/fee
+        if (subsub === "fee" && req.method === "GET") {
+          if (!apiKey.allow_price) {
+            await logUsage(supabase, apiKey.id, "/shipments/:track/fee", 403, req);
+            return jsonResponse({ error: "Fee access is not enabled for this API key" }, 403);
+          }
+          const dto = shipmentDto(cargo, apiKey);
+          await logUsage(supabase, apiKey.id, "/shipments/:track/fee", 200, req);
+          return jsonResponse({ data: { trackNumber: cargo.track_number, fee: dto.fee } });
+        }
+
+        // GET /shipments/:track/location
+        if (subsub === "location" && req.method === "GET") {
+          const internal = cargo.status as InternalStatus;
+          let branchInfo: any = null;
+          if (cargo.branch_id) {
+            const { data: br } = await supabase.from("branches")
+              .select("name, code").eq("id", cargo.branch_id).maybeSingle();
+            branchInfo = br;
+          }
+          await logUsage(supabase, apiKey.id, "/shipments/:track/location", 200, req);
+          return jsonResponse({
+            data: {
+              trackNumber: cargo.track_number,
+              status: INTERNAL_TO_EXTERNAL[internal] ?? cargo.status,
+              location: STATUS_LOCATION[internal] ?? null,
+              branch: branchInfo,
+              updatedAt: cargo.status_date,
+            },
+          });
+        }
+
+        // GET /shipments/:track/history
+        if (subsub === "history" && req.method === "GET") {
+          const { data: hist, error } = await supabase
+            .from("cargo_status_history")
+            .select("status, created_at")
+            .eq("cargo_id", cargo.id)
+            .order("created_at", { ascending: true });
+          if (error) throw error;
+          const items = (hist || []).map((h: any) => ({
+            status: INTERNAL_TO_EXTERNAL[h.status as InternalStatus] ?? h.status,
+            timestamp: h.created_at,
+          }));
+          await logUsage(supabase, apiKey.id, "/shipments/:track/history", 200, req);
+          return jsonResponse({ data: items });
+        }
+
+        // GET /shipments/:track/images
+        if (subsub === "images" && req.method === "GET") {
+          const { data: photos, error } = await supabase
+            .from("cargo_photos")
+            .select("photo_url, created_at")
+            .eq("cargo_id", cargo.id)
+            .order("created_at", { ascending: true });
+          if (error) throw error;
+          const items = (photos || []).map((p: any) => ({ url: p.photo_url, uploadedAt: p.created_at }));
+          await logUsage(supabase, apiKey.id, "/shipments/:track/images", 200, req);
+          return jsonResponse({ data: items });
+        }
+
+        // POST /shipments/:track/status
+        if (subsub === "status" && req.method === "POST") {
+          const body = await req.json().catch(() => ({}));
+          const extStatus = body.status as ExternalStatus;
+          if (!extStatus || !(extStatus in EXTERNAL_TO_INTERNAL)) {
+            await logUsage(supabase, apiKey.id, "/shipments/:track/status", 400, req);
+            return jsonResponse({
+              error: "Invalid status",
+              accepted: Object.keys(EXTERNAL_TO_INTERNAL),
+            }, 400);
+          }
+          const internalStatus = EXTERNAL_TO_INTERNAL[extStatus];
+          if (!internalStatus) {
+            await logUsage(supabase, apiKey.id, "/shipments/:track/status", 400, req);
+            return jsonResponse({ error: `Status '${extStatus}' cannot be applied via API` }, 400);
+          }
+
+          const { data, error } = await supabase
+            .from("cargo")
+            .update({ status: internalStatus, status_date: new Date().toISOString() })
+            .eq("id", cargo.id)
+            .select("id, track_number, status, status_date")
+            .maybeSingle();
+          if (error) throw error;
+
+          await logUsage(supabase, apiKey.id, "/shipments/:track/status", 200, req);
+          return jsonResponse({
+            data: {
+              trackNumber: data!.track_number,
+              status: INTERNAL_TO_EXTERNAL[data!.status as InternalStatus],
+              statusUpdatedAt: data!.status_date,
+            },
+          });
+        }
       }
-
-      const { data, error } = await query.limit(50);
-      if (error) throw error;
-
-      const results = (data || []).map((c: any) => ({
-        ...c,
-        phone_number: maskPhone(c.phone_number),
-        price: apiKey.allow_price ? c.price : undefined,
-      }));
-
-      await logUsage(supabase, apiKey.id, "/cargo/search", 200, req);
-      return jsonResponse({ data: results });
     }
 
-    // POST /external-api/cargo/status - Update cargo status
-    if (resource === "cargo" && action === "status" && req.method === "POST") {
-      const body = await req.json();
-      const { track_number, status } = body;
-
-      if (!track_number || !status) {
-        await logUsage(supabase, apiKey.id, "/cargo/status", 400, req);
-        return jsonResponse({ error: "track_number and status are required" }, 400);
+    // ===== Backward compatible /cargo/* routes =====
+    if (resource === "cargo") {
+      // GET /cargo/by-tracking
+      if (sub === "by-tracking" && req.method === "GET") {
+        const trackNumber = url.searchParams.get("trackNumber");
+        if (!trackNumber) return jsonResponse({ error: "trackNumber required" }, 400);
+        let q = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("track_number", trackNumber);
+        q = applyKeyScope(q, apiKey);
+        const { data } = await q.maybeSingle();
+        if (!data) return jsonResponse({ error: "Cargo not found" }, 404);
+        await logUsage(supabase, apiKey.id, "/cargo/by-tracking", 200, req);
+        return jsonResponse({ data: shipmentDto(data, apiKey) });
       }
-
-      const validStatuses = [
-        "registered", "received_ereen", "transporting",
-        "warehouse_processing", "ready_warehouse", "completed",
-      ];
-
-      if (!validStatuses.includes(status)) {
-        await logUsage(supabase, apiKey.id, "/cargo/status", 400, req);
-        return jsonResponse({ error: `Invalid status. Valid: ${validStatuses.join(", ")}` }, 400);
+      // GET /cargo/by-phone
+      if (sub === "by-phone" && req.method === "GET") {
+        if (!apiKey.allow_phone_search) return jsonResponse({ error: "Phone search not enabled" }, 403);
+        const phone = url.searchParams.get("phone");
+        if (!phone) return jsonResponse({ error: "phone required" }, 400);
+        let q = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("phone_number", phone);
+        q = applyKeyScope(q, apiKey);
+        const { data } = await q.order("created_at", { ascending: false }).limit(50);
+        await logUsage(supabase, apiKey.id, "/cargo/by-phone", 200, req);
+        return jsonResponse({ data: (data || []).map((c: any) => shipmentDto(c, apiKey)) });
       }
-
-      let updateQuery = supabase
-        .from("cargo")
-        .update({ status, status_date: new Date().toISOString() })
-        .eq("track_number", track_number);
-
-      if (apiKey.allowed_branches && apiKey.allowed_branches.length > 0) {
-        updateQuery = updateQuery.in("branch_id", apiKey.allowed_branches);
+      // GET /cargo/history
+      if (sub === "history" && req.method === "GET") {
+        const trackNumber = url.searchParams.get("trackNumber");
+        if (!trackNumber) return jsonResponse({ error: "trackNumber required" }, 400);
+        let lookup = supabase.from("cargo").select("id").eq("track_number", trackNumber);
+        lookup = applyKeyScope(lookup, apiKey);
+        const { data: cargo } = await lookup.maybeSingle();
+        if (!cargo) return jsonResponse({ error: "Cargo not found" }, 404);
+        const { data: hist } = await supabase
+          .from("cargo_status_history")
+          .select("status, created_at")
+          .eq("cargo_id", cargo.id)
+          .order("created_at", { ascending: true });
+        await logUsage(supabase, apiKey.id, "/cargo/history", 200, req);
+        return jsonResponse({
+          data: (hist || []).map((h: any) => ({
+            status: INTERNAL_TO_EXTERNAL[h.status as InternalStatus] ?? h.status,
+            timestamp: h.created_at,
+          })),
+        });
       }
+      // POST /cargo/status
+      if (sub === "status" && req.method === "POST") {
+        const body = await req.json().catch(() => ({}));
+        const { track_number, status } = body;
+        if (!track_number || !status) return jsonResponse({ error: "track_number and status required" }, 400);
+        const internal =
+          (EXTERNAL_TO_INTERNAL as any)[status] ?? (status in INTERNAL_TO_EXTERNAL ? status : null);
+        if (!internal) return jsonResponse({ error: "Invalid status" }, 400);
 
-      const { data, error } = await updateQuery.select("id, track_number, status, status_date");
-
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        await logUsage(supabase, apiKey.id, "/cargo/status", 404, req);
-        return jsonResponse({ error: "Cargo not found or no branch access" }, 404);
+        let q = supabase.from("cargo").update({
+          status: internal, status_date: new Date().toISOString(),
+        }).eq("track_number", track_number);
+        q = applyKeyScope(q, apiKey);
+        const { data, error } = await q.select("id, track_number, status, status_date");
+        if (error) throw error;
+        if (!data?.length) return jsonResponse({ error: "Cargo not found" }, 404);
+        await logUsage(supabase, apiKey.id, "/cargo/status", 200, req);
+        return jsonResponse({
+          data: {
+            trackNumber: data[0].track_number,
+            status: INTERNAL_TO_EXTERNAL[data[0].status as InternalStatus],
+            statusUpdatedAt: data[0].status_date,
+          },
+        });
       }
-
-      await logUsage(supabase, apiKey.id, "/cargo/status", 200, req);
-      return jsonResponse({ data: data[0] });
     }
 
     await logUsage(supabase, apiKey.id, "/not-found", 404, req);
@@ -394,18 +469,22 @@ Deno.serve(async (req) => {
       {
         error: "Not found",
         available_endpoints: [
-          "GET /external-api/cargo/by-tracking?trackNumber=XXX",
-          "GET /external-api/cargo/by-phone?phone=XXXXXXXX",
-          "GET /external-api/cargo/history?trackNumber=XXX",
-          "POST /external-api/cargo/status { track_number, status }",
-          "GET /external-api/health",
+          "GET /shipments?page=&pageSize=&sort=&order=&status=&q=&merchant_id=&customer_code=&from=&to=",
+          "GET /shipments/:trackNumber",
+          "GET /shipments/:trackNumber/status",
+          "GET /shipments/:trackNumber/fee",
+          "GET /shipments/:trackNumber/history",
+          "GET /shipments/:trackNumber/images",
+          "GET /shipments/:trackNumber/location",
+          "POST /shipments/:trackNumber/status { status }",
+          "GET /health",
         ],
       },
-      404
+      404,
     );
   } catch (err) {
     console.error("External API error:", err);
     await logUsage(supabase, apiKey.id, "error", 500, req).catch(() => {});
-    return jsonResponse({ error: "Internal server error" }, 500);
+    return jsonResponse({ error: "Internal server error" }, 500, { "Retry-After": "1" });
   }
 });
