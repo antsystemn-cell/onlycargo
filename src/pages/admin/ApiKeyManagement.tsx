@@ -480,6 +480,33 @@ export default function ApiKeyManagement() {
                         onChange={(e) => setNewExpiresAt(e.target.value)}
                       />
                     </div>
+
+                    <Separator />
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Webhook идэвхжүүлэх</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Ачааны статус өөрчлөгдөх бүрд POST хүсэлт илгээнэ
+                          </p>
+                        </div>
+                        <Switch checked={newWebhookEnabled} onCheckedChange={setNewWebhookEnabled} />
+                      </div>
+                      {newWebhookEnabled && (
+                        <div className="space-y-2">
+                          <Label>Webhook URL</Label>
+                          <Input
+                            value={newWebhookUrl}
+                            onChange={(e) => setNewWebhookUrl(e.target.value)}
+                            placeholder="https://onlyhub.example.com/api/webhooks/onlycargo"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Үүсгэсний дараа ONLYCARGO_WEBHOOK_SECRET автоматаар үүсгэгдэж нэг л удаа харуулна
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Болих</Button>
