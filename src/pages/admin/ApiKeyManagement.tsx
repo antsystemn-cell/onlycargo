@@ -356,6 +356,7 @@ export default function ApiKeyManagement() {
                         </Button>
                       </div>
                     )}
+                  </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => { setCreateDialogOpen(false); resetCreateForm(); }}>
                       Хаах
