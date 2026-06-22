@@ -318,21 +318,44 @@ export default function ApiKeyManagement() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div className="p-3 bg-muted rounded-lg font-mono text-sm break-all border-2 border-primary/20">
-                      {newKeyRevealed}
+                    <div>
+                      <Label className="text-xs">ONLYCARGO_API_KEY</Label>
+                      <div className="p-3 bg-muted rounded-lg font-mono text-sm break-all border-2 border-primary/20 mt-1">
+                        {newKeyRevealed}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-2"
+                        onClick={() => {
+                          navigator.clipboard.writeText(newKeyRevealed);
+                          toast({ title: 'API key хуулагдлаа' });
+                        }}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        API key хуулах
+                      </Button>
                     </div>
-                    <Button
-                      className="w-full"
-                      onClick={() => {
-                        navigator.clipboard.writeText(newKeyRevealed);
-                        setCopiedKey(true);
-                        toast({ title: 'Хуулагдлаа!' });
-                      }}
-                    >
-                      {copiedKey ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                      {copiedKey ? 'Хуулагдсан' : 'Key хуулах'}
-                    </Button>
-                  </div>
+                    {newWebhookSecret && (
+                      <div>
+                        <Label className="text-xs">ONLYCARGO_WEBHOOK_SECRET</Label>
+                        <div className="p-3 bg-muted rounded-lg font-mono text-xs break-all border mt-1">
+                          {newWebhookSecret}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2"
+                          onClick={() => {
+                            navigator.clipboard.writeText(newWebhookSecret);
+                            toast({ title: 'Webhook secret хуулагдлаа' });
+                          }}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Webhook secret хуулах
+                        </Button>
+                      </div>
+                    )}
                   <DialogFooter>
                     <Button variant="outline" onClick={() => { setCreateDialogOpen(false); resetCreateForm(); }}>
                       Хаах
