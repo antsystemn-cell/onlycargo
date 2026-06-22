@@ -76,6 +76,8 @@ export default function ApiKeyManagement() {
   // Create form
   const [newName, setNewName] = useState('');
   const [newBranches, setNewBranches] = useState<string[]>([]);
+  const [newMerchantId, setNewMerchantId] = useState('');
+  const [newCustomerCodes, setNewCustomerCodes] = useState('');
   const [newAllowPhone, setNewAllowPhone] = useState(false);
   const [newAllowPrice, setNewAllowPrice] = useState(false);
   const [newRateMinute, setNewRateMinute] = useState('60');
