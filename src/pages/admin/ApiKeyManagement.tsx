@@ -238,6 +238,8 @@ export default function ApiKeyManagement() {
   const resetCreateForm = () => {
     setNewName('');
     setNewBranches([]);
+    setNewMerchantId('');
+    setNewCustomerCodes('');
     setNewAllowPhone(false);
     setNewAllowPrice(false);
     setNewRateMinute('60');
