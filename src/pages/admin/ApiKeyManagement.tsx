@@ -34,6 +34,10 @@ interface ApiKeyRow {
   rate_limit_per_minute: number;
   rate_limit_per_day: number;
   expires_at: string | null;
+  merchant_id: string | null;
+  allowed_customer_codes: string[];
+  last_used_at: string | null;
+  last_used_ip: string | null;
   created_at: string;
   updated_at: string;
 }
