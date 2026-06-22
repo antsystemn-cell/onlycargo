@@ -1,118 +1,105 @@
+# OnlyCargo API Provider Improvements
 
+OnlyCargo үлдэнэ source of truth. Одоо байгаа workflow, статус enum-уудыг бүгдийг хадгална. Only Hub зэрэг гадны системд найдвартай API үйлчилгээ үзүүлэхийн тулд `external-api` edge function болон харгалзах бүтцийг өргөтгөнө.
 
-# Cargo Management System - Implementation Plan
+## 1. Merchant ownership (DB migration)
 
-## Overview
-A modern, mobile-first cargo tracking and management web application for a Mongolia-based shipping service. Users can track their shipments from China, and admins can manage cargo registration and handover.
+`cargo` хүснэгтэд optional баганууд нэмнэ (одоо байгаа өгөгдөл хөндөгдөхгүй):
+- `merchant_id text` (nullable, indexed)
+- `customer_code text` (nullable, indexed)
+- `external_ref text` (nullable, indexed) — Only Hub талын shipment id хадгалах
 
----
+`api_keys` хүснэгтэд:
+- `merchant_id text` (nullable) — key нь зөвхөн өөрийн merchant-ын ачааг харна
+- `allowed_customer_codes text[] default '{}'`
 
-## Phase 1: Foundation & Authentication
+RLS-ийг хөндөхгүй; external-api edge function service role-оор уншина, key-ний scope-оор шүүнэ.
 
-### 1.1 Database Setup (Supabase)
-- **Users/Profiles table** - Phone number, full name (optional)
-- **User Roles table** - Secure admin/user role management
-- **Delivery Addresses table** - Multiple addresses per user
-- **Cargo table** - Track number, phone number, weight, dimensions, status, price, shelf location
-- **Notifications table** - News and reminders for users
+## 2. Status standardization
 
-### 1.2 Authentication
-- Registration and login using phone number (email format: phone@cargo.local for Supabase compatibility)
-- No SMS verification initially (can be added later)
-- Secure session management
+Дотоод `CargoStatus` enum (registered/received_ereen/transporting/warehouse_processing/ready_warehouse/completed) хэвээр үлдэнэ. API talcyд гадаад стандарт статус руу mapping хийнэ:
 
----
+```
+registered           -> created
+received_ereen       -> received
+transporting         -> in_transit
+warehouse_processing -> processing
+ready_warehouse      -> ready_for_pickup
+completed            -> completed
+(archived)           -> archived   // зөвхөн API-д, soft archive flag-аар
+```
 
-## Phase 2: User Interface
+`POST /cargo/status` дээр гадаад статус хүлээж аваад дотоод статус руу буцаан хөрвүүлнэ. Unknown статус → 400.
 
-### 2.1 Home Page / Dashboard
-- **Notification Banner** - Display latest news, announcements, and reminders
-- **Quick Search** - Search by phone number or tracking number
-  - Non-logged-in users: See cargo list with sensitive info hidden
-  - Logged-in users: See full cargo details
+`arrived` статусыг `ready_for_pickup`-тэй ижил mapping-аар хүлээн авна (хоёулаа `ready_warehouse` руу буух) — гадаад системд нийцтэй.
 
-### 2.2 My Cargo Page (Logged-in users)
-- Cargo list table with columns:
-  - Sequence number, Track number, Phone number
-  - Weight, Size (L×W×H), Status with date, Price
-- Checkbox selection for multiple items
-- Running total of selected items' prices
-- Payment section (placeholder for future Qpay integration)
+## 3. Endpoint бүрэн жагсаалт (external-api)
 
-### 2.3 Profile Page
-- Edit phone number and full name
-- Manage multiple delivery addresses (add/edit/delete)
-- View cargo history (completed shipments)
+Бүгд `Authorization: Bearer <key>` эсвэл `X-API-Key`. JSON response: `{ data, meta? }` эсвэл `{ error, code }`.
 
-### 2.4 Tools Section
-- **Freight Calculator** - Calculate shipping cost based on:
-  - Actual weight (kg)
-  - Volumetric weight (L × W × H / 5000)
-  - Display which is charged (higher of the two)
-- **China Warehouse Info** - Display warehouse address and instructions
+- `GET /health` — одоогийнхоор
+- `GET /shipments` — list. Query: `page`, `pageSize` (max 100), `sort` (`created_at|status_date`), `order` (`asc|desc`), `status` (external), `q` (track_number/phone substring), `merchant_id`, `customer_code`, `from`, `to` (ISO). Returns `{ data: Shipment[], meta: { page, pageSize, total, hasMore } }`.
+- `GET /shipments/:trackNumber` — detail (масклагдсан phone, mapped status, fee).
+- `GET /shipments/:trackNumber/history` — `cargo_status_history`-г external статусаар map хийж өгнө.
+- `GET /shipments/:trackNumber/status` — зөвхөн статус + timestamp.
+- `GET /shipments/:trackNumber/fee` — `price`, `weight_price`, `volume_price`, `cubic_meters` (`allow_price` тохиргооноос хамаарна).
+- `GET /shipments/:trackNumber/images` — `cargo_photos`-аас public URL-ууд.
+- `GET /shipments/:trackNumber/location` — одоогийн статус дээр үндэслэсэн location label (Эрээн / Замын / Агуулах / Хүлээлгэж өгсөн) + branch нэр/код.
+- `POST /shipments/:trackNumber/status` — external статус хүлээж аваад update (одоогийн `/cargo/status` логикийг хадгална).
 
----
+Хуучин `/cargo/by-tracking`, `/cargo/by-phone`, `/cargo/history`, `/cargo/status` route-уудыг backward compatible байлгана.
 
-## Phase 3: Admin Panel
+## 4. Scoping rules
 
-### 3.1 Admin Dashboard
-- Overview statistics (pending cargo count, today's registrations)
-- Quick access to all admin functions
+Key validation дараах дарааллаар шүүнэ:
+1. `allowed_branches` (одоогийнх) — set бол `branch_id IN (...)`
+2. `merchant_id` — set бол `cargo.merchant_id = key.merchant_id`
+3. `allowed_customer_codes` — set бол `cargo.customer_code = ANY(...)`
 
-### 3.2 Cargo Registration
-- Step-by-step form:
-  1. Enter tracking number
-  2. Enter customer phone number
-  3. Enter weight and dimensions
-  4. Select warehouse shelf location
-- Auto-link to existing user or create pending entry
+Хэрэв key дээр merchant/customer scope тавьсан атал ачаа таарахгүй бол 404 буцаана (хэрэглэгчид өөр merchant-ын мэдээлэл байгаа эсэхийг мэдэгдэхгүй).
 
-### 3.3 Unassigned Cargo Management
-- List of cargo without phone numbers
-- Ability to assign phone number later
-- Search shows special message for unassigned cargo
+## 5. Pagination, sorting, filtering, retry
 
-### 3.4 Cargo Handover
-- Search by phone number
-- Filter by status: "Arrived in UB"
-- Select items for handover
-- Print receipt (basic HTML print, thermal printer support for later)
-- Mark as COMPLETED after payment
+- Pagination: `range()` ашиглан Supabase-аас `count: 'exact'` авч `meta.total` буцаана.
+- Sorting: `created_at` (default desc), `status_date`.
+- Search: `track_number ilike %q%` OR `phone_number ilike %q%` (key-д `allow_phone_search` идэвхтэй бол).
+- Retry: 5xx response-уудад `Retry-After: 1` header нэмнэ. Rate-limit 429 дээр одоогоор `Retry-After: 60`.
+- Идempotency: `POST /shipments/:trackNumber/status` дээр `Idempotency-Key` header хүлээж авч сүүлийн 24 цагийн log-оос дуплекат шалгана (хөнгөн хувилбар: ижил key+endpoint+статус сүүлийн 1 минутад → cached 200).
 
-### 3.5 User & Data Management
-- View all users and their cargo
-- Edit/delete cargo entries
-- Update cargo status manually
+## 6. Security & masking
 
----
+- Admin notes, `registered_by`, `payment_id`, internal id-уудыг хариунд оруулахгүй.
+- Phone үргэлж масклана (одоогийн логик).
+- API key-үүд SHA-256 hashed (одоогоор тийм).
+- `last_used_at`, `last_ip` талбарыг `api_keys`-д шинэчилнэ.
+- CORS зөвхөн `*` GET/POST үлдэнэ; admin endpoints энд байхгүй.
 
-## Design Approach
+## 7. Performance
 
-### Visual Style
-- **Minimal & Clean** - White background, subtle grays, one accent color (blue or green)
-- **Mobile-first** - Touch-friendly buttons, full-width cards on mobile
-- **Clear typography** - Easy to scan tables and lists
-- **Intuitive icons** - Package, truck, warehouse icons for status
+DB migration-д дараах index нэмнэ:
+- `cargo (merchant_id)`
+- `cargo (customer_code)`
+- `cargo (status, status_date desc)`
+- `cargo (branch_id, status_date desc)`
+- `cargo_status_history (cargo_id, created_at)`
+- `api_key_usage_logs (api_key_id, created_at desc)`
 
-### Navigation
-- **User side**: Bottom navigation bar (Home, My Cargo, Calculator, Profile)
-- **Admin side**: Sidebar navigation with clear sections
+List query-д зөвхөн хэрэгтэй баганыг select хийнэ. Rate-limit count `head: true` (одоогоор тийм).
 
----
+## 8. Admin UI шинэчлэл
 
-## Technical Notes
-- Supabase for authentication and database
-- Row-Level Security (RLS) for data protection
-- Secure role management (separate user_roles table)
-- Responsive design using Tailwind CSS
-- Placeholder payment section ready for Qpay API
+`ApiKeyManagement.tsx`:
+- Form-д `merchant_id`, `allowed_customer_codes` (comma separated) талбар нэмнэ.
+- Шинэ endpoint жагсаалт + curl жишээнүүдийг docs хэсэгт шинэчилнэ.
 
----
+## 9. Туршилт
 
-## Future Enhancements (Not in this phase)
-- SMS verification for registration
-- Qpay payment integration
-- Push notifications
-- Thermal printer direct integration
-- Delivery tracking updates
+- `supabase functions test` шаардахгүй; гар туршилтын curl жишээнүүдийг docs-д нэмнэ.
+- Migration хийсний дараа жишээ key үүсгээд `/shipments?pageSize=5` дуудаж шалгана.
 
+## Файлууд
+
+- migration: cargo + api_keys багана, индексүүд
+- `supabase/functions/external-api/index.ts` — бүтэн дахин зохиогдоно (router + helpers)
+- `src/pages/admin/ApiKeyManagement.tsx` — merchant/customer code талбар, шинэ docs
+- `src/integrations/supabase/types.ts` — migration-ы дараа автоматаар шинэчлэгдэнэ
