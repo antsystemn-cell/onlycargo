@@ -38,6 +38,10 @@ interface ApiKeyRow {
   allowed_customer_codes: string[];
   last_used_at: string | null;
   last_used_ip: string | null;
+  webhook_url: string | null;
+  webhook_secret: string | null;
+  webhook_events: string[];
+  webhook_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -83,6 +87,10 @@ export default function ApiKeyManagement() {
   const [newRateMinute, setNewRateMinute] = useState('60');
   const [newRateDay, setNewRateDay] = useState('10000');
   const [newExpiresAt, setNewExpiresAt] = useState('');
+  const [newWebhookUrl, setNewWebhookUrl] = useState('');
+  const [newWebhookEnabled, setNewWebhookEnabled] = useState(false);
+  const [newWebhookSecret, setNewWebhookSecret] = useState<string | null>(null);
+  const [revealedWebhookKeyId, setRevealedWebhookKeyId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
   // Logs dialog
@@ -164,6 +172,11 @@ export default function ApiKeyManagement() {
       const keyHash = await sha256(rawKey);
       const keyPrefix = rawKey.slice(0, 8);
 
+      // Webhook secret (per key, plaintext for HMAC signing)
+      const webhookSecret = newWebhookEnabled
+        ? 'whsec_' + crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '')
+        : null;
+
       const { data: userData } = await supabase.auth.getUser();
 
       const insertData: any = {
@@ -180,6 +193,10 @@ export default function ApiKeyManagement() {
         merchant_id: newMerchantId.trim() || null,
         allowed_customer_codes: newCustomerCodes
           .split(',').map(s => s.trim()).filter(Boolean),
+        webhook_url: newWebhookEnabled ? newWebhookUrl.trim() || null : null,
+        webhook_secret: webhookSecret,
+        webhook_enabled: newWebhookEnabled && !!newWebhookUrl.trim(),
+        webhook_events: newWebhookEnabled ? ['shipment.status_changed'] : [],
         created_by: userData?.user?.id || null,
       };
 
@@ -187,6 +204,7 @@ export default function ApiKeyManagement() {
       if (error) throw error;
 
       setNewKeyRevealed(rawKey);
+      setNewWebhookSecret(webhookSecret);
       await fetchApiKeys();
 
       toast({ title: 'API key амжилттай үүсгэгдлээ' });
@@ -245,6 +263,9 @@ export default function ApiKeyManagement() {
     setNewRateMinute('60');
     setNewRateDay('10000');
     setNewExpiresAt('');
+    setNewWebhookUrl('');
+    setNewWebhookEnabled(false);
+    setNewWebhookSecret(null);
     setNewKeyRevealed(null);
     setCopiedKey(false);
   };
@@ -297,20 +318,44 @@ export default function ApiKeyManagement() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div className="p-3 bg-muted rounded-lg font-mono text-sm break-all border-2 border-primary/20">
-                      {newKeyRevealed}
+                    <div>
+                      <Label className="text-xs">ONLYCARGO_API_KEY</Label>
+                      <div className="p-3 bg-muted rounded-lg font-mono text-sm break-all border-2 border-primary/20 mt-1">
+                        {newKeyRevealed}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-2"
+                        onClick={() => {
+                          navigator.clipboard.writeText(newKeyRevealed);
+                          toast({ title: 'API key хуулагдлаа' });
+                        }}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        API key хуулах
+                      </Button>
                     </div>
-                    <Button
-                      className="w-full"
-                      onClick={() => {
-                        navigator.clipboard.writeText(newKeyRevealed);
-                        setCopiedKey(true);
-                        toast({ title: 'Хуулагдлаа!' });
-                      }}
-                    >
-                      {copiedKey ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                      {copiedKey ? 'Хуулагдсан' : 'Key хуулах'}
-                    </Button>
+                    {newWebhookSecret && (
+                      <div>
+                        <Label className="text-xs">ONLYCARGO_WEBHOOK_SECRET</Label>
+                        <div className="p-3 bg-muted rounded-lg font-mono text-xs break-all border mt-1">
+                          {newWebhookSecret}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2"
+                          onClick={() => {
+                            navigator.clipboard.writeText(newWebhookSecret);
+                            toast({ title: 'Webhook secret хуулагдлаа' });
+                          }}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Webhook secret хуулах
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => { setCreateDialogOpen(false); resetCreateForm(); }}>
@@ -434,6 +479,33 @@ export default function ApiKeyManagement() {
                         value={newExpiresAt}
                         onChange={(e) => setNewExpiresAt(e.target.value)}
                       />
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Webhook идэвхжүүлэх</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Ачааны статус өөрчлөгдөх бүрд POST хүсэлт илгээнэ
+                          </p>
+                        </div>
+                        <Switch checked={newWebhookEnabled} onCheckedChange={setNewWebhookEnabled} />
+                      </div>
+                      {newWebhookEnabled && (
+                        <div className="space-y-2">
+                          <Label>Webhook URL</Label>
+                          <Input
+                            value={newWebhookUrl}
+                            onChange={(e) => setNewWebhookUrl(e.target.value)}
+                            placeholder="https://onlyhub.example.com/api/webhooks/onlycargo"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Үүсгэсний дараа ONLYCARGO_WEBHOOK_SECRET автоматаар үүсгэгдэж нэг л удаа харуулна
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <DialogFooter>

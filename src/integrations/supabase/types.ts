@@ -72,6 +72,10 @@ export type Database = {
           rate_limit_per_day: number
           rate_limit_per_minute: number
           updated_at: string
+          webhook_enabled: boolean
+          webhook_events: string[]
+          webhook_secret: string | null
+          webhook_url: string | null
         }
         Insert: {
           allow_phone_search?: boolean
@@ -92,6 +96,10 @@ export type Database = {
           rate_limit_per_day?: number
           rate_limit_per_minute?: number
           updated_at?: string
+          webhook_enabled?: boolean
+          webhook_events?: string[]
+          webhook_secret?: string | null
+          webhook_url?: string | null
         }
         Update: {
           allow_phone_search?: boolean
@@ -112,6 +120,10 @@ export type Database = {
           rate_limit_per_day?: number
           rate_limit_per_minute?: number
           updated_at?: string
+          webhook_enabled?: boolean
+          webhook_events?: string[]
+          webhook_secret?: string | null
+          webhook_url?: string | null
         }
         Relationships: []
       }
@@ -1249,6 +1261,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      webhook_deliveries: {
+        Row: {
+          api_key_id: string
+          attempts: number
+          created_at: string
+          error: string | null
+          event: string
+          id: string
+          payload: Json
+          response_body: string | null
+          response_status: number | null
+          success: boolean
+          target_url: string
+        }
+        Insert: {
+          api_key_id: string
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          event: string
+          id?: string
+          payload: Json
+          response_body?: string | null
+          response_status?: number | null
+          success?: boolean
+          target_url: string
+        }
+        Update: {
+          api_key_id?: string
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          event?: string
+          id?: string
+          payload?: Json
+          response_body?: string | null
+          response_status?: number | null
+          success?: boolean
+          target_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_deliveries_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
