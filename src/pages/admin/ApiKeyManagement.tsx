@@ -38,6 +38,10 @@ interface ApiKeyRow {
   allowed_customer_codes: string[];
   last_used_at: string | null;
   last_used_ip: string | null;
+  webhook_url: string | null;
+  webhook_secret: string | null;
+  webhook_events: string[];
+  webhook_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -83,6 +87,10 @@ export default function ApiKeyManagement() {
   const [newRateMinute, setNewRateMinute] = useState('60');
   const [newRateDay, setNewRateDay] = useState('10000');
   const [newExpiresAt, setNewExpiresAt] = useState('');
+  const [newWebhookUrl, setNewWebhookUrl] = useState('');
+  const [newWebhookEnabled, setNewWebhookEnabled] = useState(false);
+  const [newWebhookSecret, setNewWebhookSecret] = useState<string | null>(null);
+  const [revealedWebhookKeyId, setRevealedWebhookKeyId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
   // Logs dialog
@@ -164,6 +172,11 @@ export default function ApiKeyManagement() {
       const keyHash = await sha256(rawKey);
       const keyPrefix = rawKey.slice(0, 8);
 
+      // Webhook secret (per key, plaintext for HMAC signing)
+      const webhookSecret = newWebhookEnabled
+        ? 'whsec_' + crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '')
+        : null;
+
       const { data: userData } = await supabase.auth.getUser();
 
       const insertData: any = {
@@ -180,6 +193,10 @@ export default function ApiKeyManagement() {
         merchant_id: newMerchantId.trim() || null,
         allowed_customer_codes: newCustomerCodes
           .split(',').map(s => s.trim()).filter(Boolean),
+        webhook_url: newWebhookEnabled ? newWebhookUrl.trim() || null : null,
+        webhook_secret: webhookSecret,
+        webhook_enabled: newWebhookEnabled && !!newWebhookUrl.trim(),
+        webhook_events: newWebhookEnabled ? ['shipment.status_changed'] : [],
         created_by: userData?.user?.id || null,
       };
 
@@ -187,6 +204,7 @@ export default function ApiKeyManagement() {
       if (error) throw error;
 
       setNewKeyRevealed(rawKey);
+      setNewWebhookSecret(webhookSecret);
       await fetchApiKeys();
 
       toast({ title: 'API key амжилттай үүсгэгдлээ' });
@@ -245,6 +263,9 @@ export default function ApiKeyManagement() {
     setNewRateMinute('60');
     setNewRateDay('10000');
     setNewExpiresAt('');
+    setNewWebhookUrl('');
+    setNewWebhookEnabled(false);
+    setNewWebhookSecret(null);
     setNewKeyRevealed(null);
     setCopiedKey(false);
   };
