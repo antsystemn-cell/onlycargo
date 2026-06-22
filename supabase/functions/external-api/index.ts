@@ -263,7 +263,72 @@ Deno.serve(async (req) => {
         });
       }
 
+      // POST /shipments  (create a new shipment for the merchant)
+      if (!sub && req.method === "POST") {
+        if (!apiKey.merchant_id) {
+          await logUsage(supabase, apiKey.id, "/shipments[POST]", 403, req);
+          return jsonResponse({ error: "This API key is not allowed to create shipments. A merchant-scoped key is required." }, 403);
+        }
+        const body = await req.json().catch(() => ({} as any));
+        const phone = String(body.phone || body.phone_number || "").trim();
+        if (phone && !/^[6-9][0-9]{7}$/.test(phone)) {
+          await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
+          return jsonResponse({ error: "Invalid phone. Must be 8 digits starting with 6/7/8/9." }, 400);
+        }
+        const trackNumber = String(body.trackNumber || body.track_number || "").trim();
+        if (!trackNumber) {
+          await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
+          return jsonResponse({ error: "trackNumber is required" }, 400);
+        }
+        const customerCode = String(body.customerCode || body.customer_code || "").trim() || null;
+        if (apiKey.allowed_customer_codes?.length) {
+          if (!customerCode || !apiKey.allowed_customer_codes.includes(customerCode)) {
+            await logUsage(supabase, apiKey.id, "/shipments[POST]", 403, req);
+            return jsonResponse({
+              error: "customer_code is required and must be one of allowed_customer_codes",
+              allowed: apiKey.allowed_customer_codes,
+            }, 403);
+          }
+        }
+
+        // Idempotency: if a row with the same track_number already exists for this merchant, return it
+        let existQ = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("track_number", trackNumber);
+        existQ = applyKeyScope(existQ, apiKey);
+        const { data: existing } = await existQ.maybeSingle();
+        if (existing) {
+          await logUsage(supabase, apiKey.id, "/shipments[POST]", 200, req);
+          return jsonResponse({ data: shipmentDto(existing, apiKey), idempotent: true });
+        }
+
+        const insertRow: Record<string, any> = {
+          track_number: trackNumber,
+          phone_number: phone,
+          merchant_id: apiKey.merchant_id,
+          customer_code: customerCode,
+          external_ref: body.externalRef || body.external_ref || null,
+          weight: body.weight ?? null,
+          length: body.dimensions?.length ?? body.length ?? null,
+          width: body.dimensions?.width ?? body.width ?? null,
+          height: body.dimensions?.height ?? body.height ?? null,
+          notes: body.notes ?? null,
+          branch_id: apiKey.allowed_branches?.length === 1 ? apiKey.allowed_branches[0] : (body.branchId || body.branch_id || null),
+        };
+
+        const { data: created, error: insErr } = await supabase
+          .from("cargo")
+          .insert(insertRow)
+          .select(SHIPMENT_COLUMNS)
+          .single();
+        if (insErr) {
+          await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
+          return jsonResponse({ error: insErr.message }, 400);
+        }
+        await logUsage(supabase, apiKey.id, "/shipments[POST]", 201, req);
+        return jsonResponse({ data: shipmentDto(created, apiKey) }, 201);
+      }
+
       // /shipments/:trackNumber/...
+
       if (sub) {
         // Resolve cargo with scoping
         let lookup = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("track_number", sub);
