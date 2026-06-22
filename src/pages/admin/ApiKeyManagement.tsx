@@ -365,6 +365,29 @@ export default function ApiKeyManagement() {
 
                     <Separator />
 
+                    <div className="space-y-2">
+                      <Label>Merchant ID (заавал биш)</Label>
+                      <Input
+                        value={newMerchantId}
+                        onChange={(e) => setNewMerchantId(e.target.value)}
+                        placeholder="Жишээ: only-hub"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Бөглөвөл зөвхөн энэ merchant-д хамаарах ачаа л харагдана
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Customer codes (таслалаар тусгаарлана, заавал биш)</Label>
+                      <Input
+                        value={newCustomerCodes}
+                        onChange={(e) => setNewCustomerCodes(e.target.value)}
+                        placeholder="CUS001, CUS002"
+                      />
+                    </div>
+
+                    <Separator />
+
                     <div className="space-y-3">
                       <Label>Зөвшөөрлүүд</Label>
                       <div className="flex items-center justify-between">
