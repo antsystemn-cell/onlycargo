@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.external-api]
 verify_jwt = false
+
+[functions.webhook-dispatcher]
+verify_jwt = false
