@@ -454,7 +454,72 @@ Deno.serve(async (req) => {
             },
           });
         }
+
+        // PATCH /shipments/:track  (update merchant-editable fields)
+        if (!subsub && (req.method === "PATCH" || req.method === "PUT")) {
+          if (!apiKey.merchant_id) {
+            await logUsage(supabase, apiKey.id, "/shipments/:track[PATCH]", 403, req);
+            return jsonResponse({ error: "Merchant-scoped API key required" }, 403);
+          }
+          const body = await req.json().catch(() => ({} as any));
+          const patch: Record<string, any> = {};
+          if (body.weight !== undefined) patch.weight = body.weight;
+          if (body.length !== undefined) patch.length = body.length;
+          if (body.width !== undefined) patch.width = body.width;
+          if (body.height !== undefined) patch.height = body.height;
+          if (body.dimensions) {
+            if (body.dimensions.length !== undefined) patch.length = body.dimensions.length;
+            if (body.dimensions.width !== undefined) patch.width = body.dimensions.width;
+            if (body.dimensions.height !== undefined) patch.height = body.dimensions.height;
+          }
+          if (body.notes !== undefined) patch.notes = body.notes;
+          if (body.externalRef !== undefined) patch.external_ref = body.externalRef;
+          if (body.external_ref !== undefined) patch.external_ref = body.external_ref;
+          if (body.phone !== undefined || body.phone_number !== undefined) {
+            const np = String(body.phone ?? body.phone_number).trim();
+            if (np && !/^[6-9][0-9]{7}$/.test(np)) {
+              await logUsage(supabase, apiKey.id, "/shipments/:track[PATCH]", 400, req);
+              return jsonResponse({ error: "Invalid phone format" }, 400);
+            }
+            patch.phone_number = np;
+          }
+          if (Object.keys(patch).length === 0) {
+            return jsonResponse({ error: "No editable fields provided" }, 400);
+          }
+          const { data: updated, error: updErr } = await supabase
+            .from("cargo").update(patch).eq("id", cargo.id)
+            .select(SHIPMENT_COLUMNS).single();
+          if (updErr) {
+            await logUsage(supabase, apiKey.id, "/shipments/:track[PATCH]", 400, req);
+            return jsonResponse({ error: updErr.message }, 400);
+          }
+          await logUsage(supabase, apiKey.id, "/shipments/:track[PATCH]", 200, req);
+          return jsonResponse({ data: shipmentDto(updated, apiKey) });
+        }
+
+        // POST /shipments/:track/cancel  (only while still in 'registered' state)
+        if (subsub === "cancel" && req.method === "POST") {
+          if (!apiKey.merchant_id) {
+            await logUsage(supabase, apiKey.id, "/shipments/:track/cancel", 403, req);
+            return jsonResponse({ error: "Merchant-scoped API key required" }, 403);
+          }
+          if (cargo.status !== "registered") {
+            await logUsage(supabase, apiKey.id, "/shipments/:track/cancel", 409, req);
+            return jsonResponse({
+              error: "Only shipments in 'created' status can be cancelled",
+              currentStatus: INTERNAL_TO_EXTERNAL[cargo.status as InternalStatus] ?? cargo.status,
+            }, 409);
+          }
+          const { error: delErr } = await supabase.from("cargo").delete().eq("id", cargo.id);
+          if (delErr) {
+            await logUsage(supabase, apiKey.id, "/shipments/:track/cancel", 400, req);
+            return jsonResponse({ error: delErr.message }, 400);
+          }
+          await logUsage(supabase, apiKey.id, "/shipments/:track/cancel", 200, req);
+          return jsonResponse({ data: { trackNumber: cargo.track_number, cancelled: true } });
+        }
       }
+
     }
 
     // ===== Backward compatible /cargo/* routes =====
