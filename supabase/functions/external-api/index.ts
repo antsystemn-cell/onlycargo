@@ -300,12 +300,22 @@ Deno.serve(async (req) => {
           return jsonResponse({ data: shipmentDto(existing, apiKey), idempotent: true });
         }
 
+        // Try to find a registered user by phone so cargo appears in their "Миний ачаа" immediately
+        let resolvedUserId: string | null = null;
+        if (phone) {
+          const { data: prof } = await supabase
+            .from("profiles").select("id").eq("phone", phone).maybeSingle();
+          if (prof?.id) resolvedUserId = prof.id;
+        }
+
         const insertRow: Record<string, any> = {
           track_number: trackNumber,
           phone_number: phone,
+          user_id: resolvedUserId,
           merchant_id: apiKey.merchant_id,
           customer_code: customerCode,
           external_ref: body.externalRef || body.external_ref || null,
+          description: body.description ?? body.notes ?? null,
           weight: body.weight ?? null,
           length: body.dimensions?.length ?? body.length ?? null,
           width: body.dimensions?.width ?? body.width ?? null,
