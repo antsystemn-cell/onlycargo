@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.webhook-dispatcher]
 verify_jwt = false
+
+[functions.webhook-retry]
+verify_jwt = false

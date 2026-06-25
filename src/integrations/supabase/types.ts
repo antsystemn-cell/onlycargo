@@ -1269,10 +1269,16 @@ export type Database = {
           created_at: string
           error: string | null
           event: string
+          event_id: string | null
           id: string
+          last_attempt_at: string | null
+          last_error: string | null
+          max_attempts: number
+          next_retry_at: string | null
           payload: Json
           response_body: string | null
           response_status: number | null
+          status: string
           success: boolean
           target_url: string
         }
@@ -1282,10 +1288,16 @@ export type Database = {
           created_at?: string
           error?: string | null
           event: string
+          event_id?: string | null
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
           payload: Json
           response_body?: string | null
           response_status?: number | null
+          status?: string
           success?: boolean
           target_url: string
         }
@@ -1295,10 +1307,16 @@ export type Database = {
           created_at?: string
           error?: string | null
           event?: string
+          event_id?: string | null
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
           payload?: Json
           response_body?: string | null
           response_status?: number | null
+          status?: string
           success?: boolean
           target_url?: string
         }
