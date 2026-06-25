@@ -137,31 +137,44 @@ function applyKeyScope(query: any, apiKey: ApiKeyRecord) {
 
 function shipmentDto(c: any, apiKey: ApiKeyRecord) {
   const internal = c.status as InternalStatus;
+  const ext = INTERNAL_TO_EXTERNAL[internal] ?? c.status;
+  const dims = c.length && c.width && c.height
+    ? { length: c.length, width: c.width, height: c.height }
+    : null;
   const dto: Record<string, any> = {
+    // camelCase (primary)
     trackNumber: c.track_number,
-    status: INTERNAL_TO_EXTERNAL[internal] ?? c.status,
+    status: ext,
     statusUpdatedAt: c.status_date,
     phone: maskPhone(c.phone_number),
     merchantId: c.merchant_id ?? null,
     customerCode: c.customer_code ?? null,
     externalRef: c.external_ref ?? null,
     weight: c.weight,
-    dimensions: c.length && c.width && c.height
-      ? { length: c.length, width: c.width, height: c.height }
-      : null,
+    dimensions: dims,
     location: STATUS_LOCATION[internal] ?? null,
     branchId: c.branch_id,
     createdAt: c.created_at,
     updatedAt: c.updated_at,
+    // snake_case mirrors for naming consistency
+    track_number: c.track_number,
+    status_updated_at: c.status_date,
+    merchant_id: c.merchant_id ?? null,
+    customer_code: c.customer_code ?? null,
+    external_ref: c.external_ref ?? null,
+    branch_id: c.branch_id,
+    created_at: c.created_at,
+    updated_at: c.updated_at,
   };
   if (apiKey.allow_price) {
-    dto.fee = {
+    const fee = {
       total: c.price,
       cubicMeters: c.total_cubic_meters,
       weightPrice: c.weight && c.kg_price ? Number(c.weight) * Number(c.kg_price) : null,
       volumePrice: c.total_cubic_meters && c.cubic_meter_price
         ? Number(c.total_cubic_meters) * Number(c.cubic_meter_price) : null,
     };
+    dto.fee = fee;
   }
   return dto;
 }
