@@ -22,6 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import WebhookMonitor from '@/components/admin/WebhookMonitor';
 
 interface ApiKeyRow {
   id: string;
@@ -687,6 +688,8 @@ export default function ApiKeyManagement() {
         </DialogContent>
       </Dialog>
 
+      <WebhookMonitor />
+
       {/* API Documentation Card */}
       <Card>
         <CardHeader>
@@ -797,6 +800,19 @@ export default function ApiKeyManagement() {
                 <p>200 OK · 400 буруу параметр · 401 түлхүүр буруу · 403 эрх хүрэхгүй</p>
                 <p>404 олдсонгүй · 429 rate limit (Retry-After) · 5xx Retry-After: 1</p>
               </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-1">
+              <p className="font-semibold">Webhook signature форматууд (бүх 3-г зэрэг илгээнэ):</p>
+              <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                <li><code>X-OnlyCargo-Signature: t=&lt;ts&gt;,v1=&lt;hmac(ts.body)&gt;</code></li>
+                <li><code>X-Signature: sha256=&lt;hmac(body)&gt;</code></li>
+                <li><code>X-Hub-Signature-256: sha256=&lt;hmac(body)&gt;</code> (GitHub-style)</li>
+                <li><code>X-OnlyCargo-Signature-Plain: &lt;hex&gt;</code></li>
+              </ul>
+              <p className="text-xs text-muted-foreground">Idempotency: <code>event_id</code>-р давхардал хорино. Retry: 1м → 5м → 15м → 1ц → 6ц → 24ц (нийт 6 оролдлого).</p>
             </div>
 
             <Separator />
