@@ -78,6 +78,13 @@ interface ApiKeyRecord {
   expires_at: string | null;
   merchant_id: string | null;
   allowed_customer_codes: string[];
+  verified_phone: string | null;
+  verified_phone_at: string | null;
+  pending_phone: string | null;
+  pending_otp_hash: string | null;
+  pending_otp_expires_at: string | null;
+  pending_otp_attempts: number;
+  pending_otp_last_sent_at: string | null;
 }
 
 async function validateApiKey(supabase: any, rawKey: string) {
@@ -128,11 +135,29 @@ async function logUsage(supabase: any, apiKeyId: string, endpoint: string, statu
     .eq("id", apiKeyId);
 }
 
+// Merchant-scoped keys MUST have a verified phone before cargo data can flow.
+function requiresVerifiedPhone(apiKey: ApiKeyRecord) {
+  return !!apiKey.merchant_id;
+}
+
 function applyKeyScope(query: any, apiKey: ApiKeyRecord) {
+  // Phone verification trumps every other scope: only cargo for the verified phone is visible.
+  if (apiKey.verified_phone) query = query.eq("phone_number", apiKey.verified_phone);
   if (apiKey.allowed_branches?.length) query = query.in("branch_id", apiKey.allowed_branches);
   if (apiKey.merchant_id) query = query.eq("merchant_id", apiKey.merchant_id);
   if (apiKey.allowed_customer_codes?.length) query = query.in("customer_code", apiKey.allowed_customer_codes);
   return query;
+}
+
+function configError(message: string) {
+  return jsonResponse({
+    error: "configuration_error",
+    message,
+    requiredFlow: [
+      "POST /verify-phone/request { phone }",
+      "POST /verify-phone/confirm { phone, otp }",
+    ],
+  }, 412);
 }
 
 function shipmentDto(c: any, apiKey: ApiKeyRecord) {
@@ -228,6 +253,149 @@ Deno.serve(async (req) => {
       return jsonResponse({ status: "ok", timestamp: new Date().toISOString() });
     }
 
+    // ===== /verify-phone (OTP flow) =====
+    if (resource === "verify-phone") {
+      const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || null;
+
+      // GET /verify-phone — status of the current key's verification
+      if (!sub && req.method === "GET") {
+        await logUsage(supabase, apiKey.id, "/verify-phone", 200, req);
+        return jsonResponse({
+          verified: !!apiKey.verified_phone,
+          verifiedPhone: apiKey.verified_phone ? maskPhone(apiKey.verified_phone) : null,
+          verifiedAt: apiKey.verified_phone_at,
+          pendingPhone: apiKey.pending_phone ? maskPhone(apiKey.pending_phone) : null,
+          pendingExpiresAt: apiKey.pending_otp_expires_at,
+        });
+      }
+
+      // POST /verify-phone/request { phone }
+      if (sub === "request" && req.method === "POST") {
+        const body = await req.json().catch(() => ({} as any));
+        const phone = String(body.phone || "").trim();
+        if (!/^[6-9][0-9]{7}$/.test(phone)) {
+          await logUsage(supabase, apiKey.id, "/verify-phone/request", 400, req);
+          return jsonResponse({ error: "Invalid phone. Must be 8 digits starting with 6/7/8/9." }, 400);
+        }
+        // Resend cooldown: 60 seconds for the same pending phone
+        if (apiKey.pending_phone === phone && apiKey.pending_otp_last_sent_at) {
+          const elapsed = Date.now() - new Date(apiKey.pending_otp_last_sent_at).getTime();
+          if (elapsed < 60_000) {
+            const retry = Math.ceil((60_000 - elapsed) / 1000);
+            await logUsage(supabase, apiKey.id, "/verify-phone/request", 429, req);
+            return jsonResponse({ error: "Resend cooldown active", retryAfterSec: retry }, 429, {
+              "Retry-After": String(retry),
+            });
+          }
+        }
+
+        const otp = String(Math.floor(100000 + Math.random() * 900000));
+        const otpHash = await hashKey(otp);
+        const now = new Date();
+        const expires = new Date(now.getTime() + 5 * 60_000);
+
+        const { error: upErr } = await supabase.from("api_keys").update({
+          pending_phone: phone,
+          pending_otp_hash: otpHash,
+          pending_otp_expires_at: expires.toISOString(),
+          pending_otp_attempts: 0,
+          pending_otp_last_sent_at: now.toISOString(),
+        }).eq("id", apiKey.id);
+        if (upErr) throw upErr;
+
+        await supabase.from("api_key_otp_logs").insert({
+          api_key_id: apiKey.id, phone, event: "requested", ip: clientIp,
+        });
+
+        // SMS delivery is not wired yet — log server-side so an operator can read it,
+        // and (only if explicitly enabled) return the OTP for dev/testing.
+        console.log(`[OTP] api_key=${apiKey.id} phone=${phone} otp=${otp} expires=${expires.toISOString()}`);
+        const devReturn = Deno.env.get("OTP_RETURN_IN_RESPONSE") === "true";
+
+        await logUsage(supabase, apiKey.id, "/verify-phone/request", 200, req);
+        return jsonResponse({
+          success: true,
+          message: "OTP issued. Expires in 5 minutes.",
+          expiresInSec: 300,
+          ...(devReturn ? { devOtp: otp } : {}),
+        });
+      }
+
+      // POST /verify-phone/confirm { phone, otp }
+      if (sub === "confirm" && req.method === "POST") {
+        const body = await req.json().catch(() => ({} as any));
+        const phone = String(body.phone || "").trim();
+        const otp = String(body.otp || "").trim();
+
+        if (!apiKey.pending_phone || apiKey.pending_phone !== phone) {
+          await logUsage(supabase, apiKey.id, "/verify-phone/confirm", 400, req);
+          return jsonResponse({ error: "No pending verification for this phone" }, 400);
+        }
+        if (!apiKey.pending_otp_expires_at || new Date(apiKey.pending_otp_expires_at) < new Date()) {
+          await supabase.from("api_key_otp_logs").insert({
+            api_key_id: apiKey.id, phone, event: "expired", ip: clientIp,
+          });
+          await logUsage(supabase, apiKey.id, "/verify-phone/confirm", 400, req);
+          return jsonResponse({ error: "OTP expired. Request a new one." }, 400);
+        }
+        if ((apiKey.pending_otp_attempts || 0) >= 5) {
+          await logUsage(supabase, apiKey.id, "/verify-phone/confirm", 429, req);
+          return jsonResponse({ error: "Too many attempts. Request a new OTP." }, 429);
+        }
+
+        const otpHash = await hashKey(otp);
+        if (otpHash !== apiKey.pending_otp_hash) {
+          await supabase.from("api_keys")
+            .update({ pending_otp_attempts: (apiKey.pending_otp_attempts || 0) + 1 })
+            .eq("id", apiKey.id);
+          await supabase.from("api_key_otp_logs").insert({
+            api_key_id: apiKey.id, phone, event: "failed", ip: clientIp,
+          });
+          await logUsage(supabase, apiKey.id, "/verify-phone/confirm", 400, req);
+          return jsonResponse({ error: "Invalid OTP" }, 400);
+        }
+
+        // Success — promote pending to verified. Old verified phone is replaced atomically.
+        const { error: promErr } = await supabase.from("api_keys").update({
+          verified_phone: phone,
+          verified_phone_at: new Date().toISOString(),
+          pending_phone: null,
+          pending_otp_hash: null,
+          pending_otp_expires_at: null,
+          pending_otp_attempts: 0,
+          pending_otp_last_sent_at: null,
+        }).eq("id", apiKey.id);
+        if (promErr) throw promErr;
+
+        await supabase.from("api_key_otp_logs").insert({
+          api_key_id: apiKey.id, phone, event: "verified", ip: clientIp,
+        });
+        await logUsage(supabase, apiKey.id, "/verify-phone/confirm", 200, req);
+        return jsonResponse({
+          success: true,
+          verifiedPhone: maskPhone(phone),
+          verifiedAt: new Date().toISOString(),
+        });
+      }
+
+      await logUsage(supabase, apiKey.id, "/verify-phone", 404, req);
+      return jsonResponse({
+        error: "Not found",
+        endpoints: [
+          "GET /verify-phone",
+          "POST /verify-phone/request { phone }",
+          "POST /verify-phone/confirm { phone, otp }",
+        ],
+      }, 404);
+    }
+
+    // For merchant-scoped keys: cargo endpoints require a verified phone first.
+    if ((resource === "shipments" || resource === "cargo") && requiresVerifiedPhone(apiKey) && !apiKey.verified_phone) {
+      await logUsage(supabase, apiKey.id, `/${resource}[unverified]`, 412, req);
+      return configError("Verified phone is required before shipment data is accessible.");
+    }
+
+
     // ===== /shipments =====
     if (resource === "shipments") {
       // GET /shipments
@@ -283,7 +451,17 @@ Deno.serve(async (req) => {
           return jsonResponse({ error: "This API key is not allowed to create shipments. A merchant-scoped key is required." }, 403);
         }
         const body = await req.json().catch(() => ({} as any));
-        const phone = String(body.phone || body.phone_number || "").trim();
+        // Phone is always derived from the verified phone on the API key — the merchant's
+        // frontend can never override which user receives the cargo.
+        const phone = apiKey.verified_phone
+          ? apiKey.verified_phone
+          : String(body.phone || body.phone_number || "").trim();
+        if (apiKey.verified_phone && body.phone && body.phone !== apiKey.verified_phone) {
+          await logUsage(supabase, apiKey.id, "/shipments[POST]", 403, req);
+          return jsonResponse({
+            error: "Phone mismatch. This API key is bound to a verified phone; do not pass a different phone in the body.",
+          }, 403);
+        }
         if (phone && !/^[6-9][0-9]{7}$/.test(phone)) {
           await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
           return jsonResponse({ error: "Invalid phone. Must be 8 digits starting with 6/7/8/9." }, 400);
@@ -560,9 +738,16 @@ Deno.serve(async (req) => {
       }
       // GET /cargo/by-phone
       if (sub === "by-phone" && req.method === "GET") {
-        if (!apiKey.allow_phone_search) return jsonResponse({ error: "Phone search not enabled" }, 403);
-        const phone = url.searchParams.get("phone");
+        if (!apiKey.allow_phone_search && !apiKey.verified_phone) {
+          return jsonResponse({ error: "Phone search not enabled" }, 403);
+        }
+        const requested = url.searchParams.get("phone");
+        // If the key has a verified phone, ignore the query param and force the verified phone.
+        const phone = apiKey.verified_phone || requested;
         if (!phone) return jsonResponse({ error: "phone required" }, 400);
+        if (apiKey.verified_phone && requested && requested !== apiKey.verified_phone) {
+          return jsonResponse({ error: "Phone mismatch. Key is bound to a verified phone." }, 403);
+        }
         let q = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("phone_number", phone);
         q = applyKeyScope(q, apiKey);
         const { data } = await q.order("created_at", { ascending: false }).limit(50);
@@ -633,6 +818,9 @@ Deno.serve(async (req) => {
           "POST /shipments { trackNumber, phone, customerCode?, weight?, dimensions?, notes?, externalRef? }",
           "PATCH /shipments/:trackNumber { weight?, dimensions?, notes?, externalRef?, phone? }",
           "POST /shipments/:trackNumber/cancel",
+          "GET /verify-phone",
+          "POST /verify-phone/request { phone }",
+          "POST /verify-phone/confirm { phone, otp }",
           "GET /health",
         ],
       },

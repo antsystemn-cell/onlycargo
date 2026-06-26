@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_key_otp_logs: {
+        Row: {
+          api_key_id: string
+          created_at: string
+          event: string
+          id: string
+          ip: string | null
+          phone: string
+        }
+        Insert: {
+          api_key_id: string
+          created_at?: string
+          event: string
+          id?: string
+          ip?: string | null
+          phone: string
+        }
+        Update: {
+          api_key_id?: string
+          created_at?: string
+          event?: string
+          id?: string
+          ip?: string | null
+          phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_key_otp_logs_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_key_usage_logs: {
         Row: {
           api_key_id: string
@@ -69,9 +104,16 @@ export type Database = {
           last_used_ip: string | null
           merchant_id: string | null
           name: string
+          pending_otp_attempts: number
+          pending_otp_expires_at: string | null
+          pending_otp_hash: string | null
+          pending_otp_last_sent_at: string | null
+          pending_phone: string | null
           rate_limit_per_day: number
           rate_limit_per_minute: number
           updated_at: string
+          verified_phone: string | null
+          verified_phone_at: string | null
           webhook_enabled: boolean
           webhook_events: string[]
           webhook_secret: string | null
@@ -93,9 +135,16 @@ export type Database = {
           last_used_ip?: string | null
           merchant_id?: string | null
           name: string
+          pending_otp_attempts?: number
+          pending_otp_expires_at?: string | null
+          pending_otp_hash?: string | null
+          pending_otp_last_sent_at?: string | null
+          pending_phone?: string | null
           rate_limit_per_day?: number
           rate_limit_per_minute?: number
           updated_at?: string
+          verified_phone?: string | null
+          verified_phone_at?: string | null
           webhook_enabled?: boolean
           webhook_events?: string[]
           webhook_secret?: string | null
@@ -117,9 +166,16 @@ export type Database = {
           last_used_ip?: string | null
           merchant_id?: string | null
           name?: string
+          pending_otp_attempts?: number
+          pending_otp_expires_at?: string | null
+          pending_otp_hash?: string | null
+          pending_otp_last_sent_at?: string | null
+          pending_phone?: string | null
           rate_limit_per_day?: number
           rate_limit_per_minute?: number
           updated_at?: string
+          verified_phone?: string | null
+          verified_phone_at?: string | null
           webhook_enabled?: boolean
           webhook_events?: string[]
           webhook_secret?: string | null
