@@ -738,9 +738,16 @@ Deno.serve(async (req) => {
       }
       // GET /cargo/by-phone
       if (sub === "by-phone" && req.method === "GET") {
-        if (!apiKey.allow_phone_search) return jsonResponse({ error: "Phone search not enabled" }, 403);
-        const phone = url.searchParams.get("phone");
+        if (!apiKey.allow_phone_search && !apiKey.verified_phone) {
+          return jsonResponse({ error: "Phone search not enabled" }, 403);
+        }
+        const requested = url.searchParams.get("phone");
+        // If the key has a verified phone, ignore the query param and force the verified phone.
+        const phone = apiKey.verified_phone || requested;
         if (!phone) return jsonResponse({ error: "phone required" }, 400);
+        if (apiKey.verified_phone && requested && requested !== apiKey.verified_phone) {
+          return jsonResponse({ error: "Phone mismatch. Key is bound to a verified phone." }, 403);
+        }
         let q = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("phone_number", phone);
         q = applyKeyScope(q, apiKey);
         const { data } = await q.order("created_at", { ascending: false }).limit(50);
