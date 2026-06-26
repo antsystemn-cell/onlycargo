@@ -469,11 +469,38 @@ Deno.serve(async (req) => {
 
         const items = (data || []).map((c: any) => shipmentDto(c, apiKey));
         const phoneTag = effectivePhone ? `***${effectivePhone.slice(-4)}` : "none";
-        console.log(`[external-api] GET /shipments key=${apiKey.id} phone=${phoneTag} returned=${items.length} total=${count || 0} status=200`);
+
+        // Per-status counts using the SAME filters as the listing (no pagination, status filter removed).
+        let countsQ = supabase.from("cargo").select("status", { count: "exact", head: false });
+        countsQ = applyKeyScope(countsQ, apiKey);
+        if (merchantId) countsQ = countsQ.eq("merchant_id", merchantId);
+        if (customerCode) countsQ = countsQ.eq("customer_code", customerCode);
+        if (from) countsQ = countsQ.gte("created_at", from);
+        if (to) countsQ = countsQ.lte("created_at", to);
+        if (effectivePhone) countsQ = countsQ.ilike("phone_number", `%${effectivePhone}`);
+        if (q) {
+          if (apiKey.allow_phone_search) countsQ = countsQ.or(`track_number.ilike.%${q}%,phone_number.ilike.%${q}%`);
+          else countsQ = countsQ.ilike("track_number", `%${q}%`);
+        }
+        const { data: countRows } = await countsQ.limit(10000);
+        const statusCounts: Record<string, number> = {};
+        for (const row of (countRows || []) as Array<{ status: string }>) {
+          const ext = INTERNAL_TO_EXTERNAL[row.status as InternalStatus] ?? row.status;
+          statusCounts[ext] = (statusCounts[ext] || 0) + 1;
+        }
+
+        console.log(`[external-api] GET /shipments key=${apiKey.id} phone=${phoneTag} status_filter=${extStatus ?? "none"} returned=${items.length} total=${count || 0} status=200`);
         await logUsage(supabase, apiKey.id, "/shipments", 200, req);
         return jsonResponse({
           data: items,
-          meta: { page, pageSize, total: count || 0, hasMore: (count || 0) > page * pageSize },
+          meta: {
+            page,
+            pageSize,
+            total: count || 0,
+            hasMore: (count || 0) > page * pageSize,
+            phone_filter: effectivePhone ? `***${effectivePhone.slice(-4)}` : null,
+            status_counts: statusCounts,
+          },
         });
       }
 
