@@ -89,7 +89,6 @@ export default function Home() {
       icon: Calculator,
       bg: 'from-slate-50 to-zinc-100',
       iconWrap: 'bg-slate-200 text-slate-700',
-      ribbon: 'Тун удахгүй',
     },
   ];
 
