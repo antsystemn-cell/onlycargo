@@ -616,9 +616,15 @@ Deno.serve(async (req) => {
       // /shipments/:trackNumber/...
 
       if (sub) {
-        // Resolve cargo with scoping
+        // Resolve cargo with scoping + optional ?phone= guard for detail/sub-resource calls.
         let lookup = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("track_number", sub);
         lookup = applyKeyScope(lookup, apiKey);
+        const detailPhone = normalizePhone(
+          url.searchParams.get("phone")
+          || url.searchParams.get("phone_number")
+          || url.searchParams.get("customer_phone")
+        );
+        if (detailPhone) lookup = lookup.ilike("phone_number", `%${detailPhone}`);
         const { data: cargo, error: lookupErr } = await lookup.maybeSingle();
         if (lookupErr) throw lookupErr;
         if (!cargo) {
