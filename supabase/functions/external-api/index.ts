@@ -151,8 +151,11 @@ function requiresVerifiedPhone(apiKey: ApiKeyRecord) {
 
 
 function applyKeyScope(query: any, apiKey: ApiKeyRecord) {
-  // Phone verification trumps every other scope: only cargo for the verified phone is visible.
-  if (apiKey.verified_phone) query = query.eq("phone_number", apiKey.verified_phone);
+  // If the key is bound to a verified phone, that always wins (last-8-digit tolerant).
+  if (apiKey.verified_phone) {
+    const vp = normalizePhone(apiKey.verified_phone);
+    if (vp) query = query.ilike("phone_number", `%${vp}`);
+  }
   if (apiKey.allowed_branches?.length) query = query.in("branch_id", apiKey.allowed_branches);
   if (apiKey.merchant_id) query = query.eq("merchant_id", apiKey.merchant_id);
   if (apiKey.allowed_customer_codes?.length) query = query.in("customer_code", apiKey.allowed_customer_codes);
