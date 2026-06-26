@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Package, LogIn, Search as SearchIcon, Plus, Truck, MapPin, Calculator, User } from 'lucide-react';
+import { Package, LogIn, Search as SearchIcon, Plus, Truck, MapPin, Calculator, User, Menu, Home as HomeIcon, Wallet, Settings, LogOut, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { supabase } from '@/integrations/supabase/client';
