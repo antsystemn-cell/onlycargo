@@ -135,10 +135,20 @@ async function logUsage(supabase: any, apiKeyId: string, endpoint: string, statu
     .eq("id", apiKeyId);
 }
 
+// Normalize a phone number for matching: strip spaces/+/976/non-digits and keep last 8 digits (MN format).
+function normalizePhone(input: string | null | undefined): string | null {
+  if (!input) return null;
+  const digits = String(input).replace(/\D/g, "");
+  if (!digits) return null;
+  const stripped = digits.startsWith("976") ? digits.slice(3) : digits;
+  return stripped.slice(-8);
+}
+
 // Merchant-scoped keys MUST have a verified phone before cargo data can flow.
 function requiresVerifiedPhone(apiKey: ApiKeyRecord) {
   return !!apiKey.merchant_id;
 }
+
 
 function applyKeyScope(query: any, apiKey: ApiKeyRecord) {
   // Phone verification trumps every other scope: only cargo for the verified phone is visible.
@@ -408,9 +418,18 @@ Deno.serve(async (req) => {
         const extStatus = url.searchParams.get("status") as ExternalStatus | null;
         const q = url.searchParams.get("q");
         const merchantId = url.searchParams.get("merchant_id");
+
         const customerCode = url.searchParams.get("customer_code");
         const from = url.searchParams.get("from");
         const to = url.searchParams.get("to");
+        const phoneParam =
+          url.searchParams.get("phone") ||
+          url.searchParams.get("phone_number") ||
+          url.searchParams.get("customer_phone");
+        const normalizedPhone = normalizePhone(phoneParam);
+        // If the key is bound to a verified phone, it always wins (applyKeyScope enforces it).
+        // Otherwise honor the requested phone filter.
+        const effectivePhone = normalizePhone(apiKey.verified_phone) || normalizedPhone;
 
         let query = supabase.from("cargo").select(SHIPMENT_COLUMNS, { count: "exact" });
         query = applyKeyScope(query, apiKey);
@@ -423,6 +442,10 @@ Deno.serve(async (req) => {
         if (customerCode) query = query.eq("customer_code", customerCode);
         if (from) query = query.gte("created_at", from);
         if (to) query = query.lte("created_at", to);
+        if (effectivePhone) {
+          // Match by last-8 digits to be tolerant to +976/spacing variations stored historically.
+          query = query.ilike("phone_number", `%${effectivePhone}`);
+        }
         if (q) {
           if (apiKey.allow_phone_search) {
             query = query.or(`track_number.ilike.%${q}%,phone_number.ilike.%${q}%`);
@@ -437,12 +460,15 @@ Deno.serve(async (req) => {
         if (error) throw error;
 
         const items = (data || []).map((c: any) => shipmentDto(c, apiKey));
+        const phoneTag = effectivePhone ? `***${effectivePhone.slice(-4)}` : "none";
+        console.log(`[external-api] GET /shipments key=${apiKey.id} phone=${phoneTag} returned=${items.length} total=${count || 0} status=200`);
         await logUsage(supabase, apiKey.id, "/shipments", 200, req);
         return jsonResponse({
           data: items,
           meta: { page, pageSize, total: count || 0, hasMore: (count || 0) > page * pageSize },
         });
       }
+
 
       // POST /shipments  (create a new shipment for the merchant)
       if (!sub && req.method === "POST") {
@@ -741,18 +767,24 @@ Deno.serve(async (req) => {
         if (!apiKey.allow_phone_search && !apiKey.verified_phone) {
           return jsonResponse({ error: "Phone search not enabled" }, 403);
         }
-        const requested = url.searchParams.get("phone");
+        const requested = url.searchParams.get("phone")
+          || url.searchParams.get("phone_number")
+          || url.searchParams.get("customer_phone");
+        const normalizedRequested = normalizePhone(requested);
+        const normalizedVerified = normalizePhone(apiKey.verified_phone);
         // If the key has a verified phone, ignore the query param and force the verified phone.
-        const phone = apiKey.verified_phone || requested;
+        const phone = normalizedVerified || normalizedRequested;
         if (!phone) return jsonResponse({ error: "phone required" }, 400);
-        if (apiKey.verified_phone && requested && requested !== apiKey.verified_phone) {
+        if (normalizedVerified && normalizedRequested && normalizedRequested !== normalizedVerified) {
           return jsonResponse({ error: "Phone mismatch. Key is bound to a verified phone." }, 403);
         }
-        let q = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("phone_number", phone);
+        let q = supabase.from("cargo").select(SHIPMENT_COLUMNS).ilike("phone_number", `%${phone}`);
         q = applyKeyScope(q, apiKey);
         const { data } = await q.order("created_at", { ascending: false }).limit(50);
+        console.log(`[external-api] GET /cargo/by-phone key=${apiKey.id} phone=***${phone.slice(-4)} returned=${(data || []).length} status=200`);
         await logUsage(supabase, apiKey.id, "/cargo/by-phone", 200, req);
         return jsonResponse({ data: (data || []).map((c: any) => shipmentDto(c, apiKey)) });
+
       }
       // GET /cargo/history
       if (sub === "history" && req.method === "GET") {
