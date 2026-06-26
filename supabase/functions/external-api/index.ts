@@ -419,8 +419,6 @@ Deno.serve(async (req) => {
         const q = url.searchParams.get("q");
         const merchantId = url.searchParams.get("merchant_id");
 
-
-        const merchantId = url.searchParams.get("merchant_id");
         const customerCode = url.searchParams.get("customer_code");
         const from = url.searchParams.get("from");
         const to = url.searchParams.get("to");
