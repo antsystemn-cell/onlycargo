@@ -409,11 +409,9 @@ Deno.serve(async (req) => {
       }, 404);
     }
 
-    // For merchant-scoped keys: cargo endpoints require a verified phone first.
-    if ((resource === "shipments" || resource === "cargo") && requiresVerifiedPhone(apiKey) && !apiKey.verified_phone) {
-      await logUsage(supabase, apiKey.id, `/${resource}[unverified]`, 412, req);
-      return configError("Verified phone is required before shipment data is accessible.");
-    }
+    // Note: merchant-scoped keys no longer require an in-OnlyCargo OTP — Only Hub performs OTP
+    // on its side and passes the verified phone in the request. If a key DOES carry a
+    // verified_phone, applyKeyScope still pins all queries to that phone.
 
 
     // ===== /shipments =====
