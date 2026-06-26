@@ -451,7 +451,17 @@ Deno.serve(async (req) => {
           return jsonResponse({ error: "This API key is not allowed to create shipments. A merchant-scoped key is required." }, 403);
         }
         const body = await req.json().catch(() => ({} as any));
-        const phone = String(body.phone || body.phone_number || "").trim();
+        // Phone is always derived from the verified phone on the API key — the merchant's
+        // frontend can never override which user receives the cargo.
+        const phone = apiKey.verified_phone
+          ? apiKey.verified_phone
+          : String(body.phone || body.phone_number || "").trim();
+        if (apiKey.verified_phone && body.phone && body.phone !== apiKey.verified_phone) {
+          await logUsage(supabase, apiKey.id, "/shipments[POST]", 403, req);
+          return jsonResponse({
+            error: "Phone mismatch. This API key is bound to a verified phone; do not pass a different phone in the body.",
+          }, 403);
+        }
         if (phone && !/^[6-9][0-9]{7}$/.test(phone)) {
           await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
           return jsonResponse({ error: "Invalid phone. Must be 8 digits starting with 6/7/8/9." }, 400);
