@@ -425,6 +425,22 @@ Deno.serve(async (req) => {
         let query = supabase.from("cargo").select(SHIPMENT_COLUMNS, { count: "exact" });
         query = applyKeyScope(query, apiKey);
 
+        const merchantId = url.searchParams.get("merchant_id");
+        const customerCode = url.searchParams.get("customer_code");
+        const from = url.searchParams.get("from");
+        const to = url.searchParams.get("to");
+        const phoneParam =
+          url.searchParams.get("phone") ||
+          url.searchParams.get("phone_number") ||
+          url.searchParams.get("customer_phone");
+        const normalizedPhone = normalizePhone(phoneParam);
+        // If the key is bound to a verified phone, it always wins (applyKeyScope enforces it).
+        // Otherwise honor the requested phone filter.
+        const effectivePhone = normalizePhone(apiKey.verified_phone) || normalizedPhone;
+
+        let query = supabase.from("cargo").select(SHIPMENT_COLUMNS, { count: "exact" });
+        query = applyKeyScope(query, apiKey);
+
         if (extStatus) {
           const internal = EXTERNAL_TO_INTERNAL[extStatus];
           if (internal) query = query.eq("status", internal);
@@ -433,6 +449,10 @@ Deno.serve(async (req) => {
         if (customerCode) query = query.eq("customer_code", customerCode);
         if (from) query = query.gte("created_at", from);
         if (to) query = query.lte("created_at", to);
+        if (effectivePhone) {
+          // Match by last-8 digits to be tolerant to +976/spacing variations stored historically.
+          query = query.ilike("phone_number", `%${effectivePhone}`);
+        }
         if (q) {
           if (apiKey.allow_phone_search) {
             query = query.or(`track_number.ilike.%${q}%,phone_number.ilike.%${q}%`);
@@ -447,12 +467,15 @@ Deno.serve(async (req) => {
         if (error) throw error;
 
         const items = (data || []).map((c: any) => shipmentDto(c, apiKey));
+        const phoneTag = effectivePhone ? `***${effectivePhone.slice(-4)}` : "none";
+        console.log(`[external-api] GET /shipments key=${apiKey.id} phone=${phoneTag} returned=${items.length} total=${count || 0} status=200`);
         await logUsage(supabase, apiKey.id, "/shipments", 200, req);
         return jsonResponse({
           data: items,
           meta: { page, pageSize, total: count || 0, hasMore: (count || 0) > page * pageSize },
         });
       }
+
 
       // POST /shipments  (create a new shipment for the merchant)
       if (!sub && req.method === "POST") {
