@@ -767,18 +767,24 @@ Deno.serve(async (req) => {
         if (!apiKey.allow_phone_search && !apiKey.verified_phone) {
           return jsonResponse({ error: "Phone search not enabled" }, 403);
         }
-        const requested = url.searchParams.get("phone");
+        const requested = url.searchParams.get("phone")
+          || url.searchParams.get("phone_number")
+          || url.searchParams.get("customer_phone");
+        const normalizedRequested = normalizePhone(requested);
+        const normalizedVerified = normalizePhone(apiKey.verified_phone);
         // If the key has a verified phone, ignore the query param and force the verified phone.
-        const phone = apiKey.verified_phone || requested;
+        const phone = normalizedVerified || normalizedRequested;
         if (!phone) return jsonResponse({ error: "phone required" }, 400);
-        if (apiKey.verified_phone && requested && requested !== apiKey.verified_phone) {
+        if (normalizedVerified && normalizedRequested && normalizedRequested !== normalizedVerified) {
           return jsonResponse({ error: "Phone mismatch. Key is bound to a verified phone." }, 403);
         }
-        let q = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("phone_number", phone);
+        let q = supabase.from("cargo").select(SHIPMENT_COLUMNS).ilike("phone_number", `%${phone}`);
         q = applyKeyScope(q, apiKey);
         const { data } = await q.order("created_at", { ascending: false }).limit(50);
+        console.log(`[external-api] GET /cargo/by-phone key=${apiKey.id} phone=***${phone.slice(-4)} returned=${(data || []).length} status=200`);
         await logUsage(supabase, apiKey.id, "/cargo/by-phone", 200, req);
         return jsonResponse({ data: (data || []).map((c: any) => shipmentDto(c, apiKey)) });
+
       }
       // GET /cargo/history
       if (sub === "history" && req.method === "GET") {
