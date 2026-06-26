@@ -13,7 +13,7 @@ import CargoPublicCard from '@/components/cargo/CargoPublicCard';
 import type { Cargo, CargoPublic, CargoStatus } from '@/types/cargo';
 
 export default function Home() {
-  const { user, profile, isAdmin, isLoading, signOut } = useAuth();
+  const { user, profile, isAdmin, isLoading } = useAuth();
   const { logoUrl } = useSiteSettings();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
