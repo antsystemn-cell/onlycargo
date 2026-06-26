@@ -101,24 +101,7 @@ export default function Home() {
             <img src={logoUrl} alt="OnlyCargo" className="h-9 w-9 object-contain" />
             <h1 className="text-lg font-bold tracking-tight">OnlyCargo</h1>
           </div>
-          <div className="absolute right-0 flex items-center gap-2">
-            {user ? (
-              <button
-                onClick={() => navigate('/profile')}
-                aria-label="Профайл"
-                className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
-              >
-                <User className="h-5 w-5" />
-              </button>
-            ) : (
-              <button
-                onClick={() => navigate('/auth')}
-                aria-label="Нэвтрэх"
-                className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
-              >
-                <User className="h-5 w-5" />
-              </button>
-            )}
+          <div className="absolute left-0 flex items-center">
             <Sheet>
               <SheetTrigger asChild>
                 <button
@@ -128,7 +111,7 @@ export default function Home() {
                   <Menu className="h-5 w-5" />
                 </button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-72">
+              <SheetContent side="left" className="w-72">
                 <SheetHeader>
                   <SheetTitle className="flex items-center gap-2">
                     <img src={logoUrl} alt="" className="h-7 w-7 object-contain" />
@@ -185,6 +168,25 @@ export default function Home() {
                 </nav>
               </SheetContent>
             </Sheet>
+          </div>
+          <div className="absolute right-0 flex items-center">
+            {user ? (
+              <button
+                onClick={() => navigate('/profile')}
+                aria-label="Профайл"
+                className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+              >
+                <User className="h-5 w-5" />
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/auth')}
+                aria-label="Нэвтрэх"
+                className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+              >
+                <User className="h-5 w-5" />
+              </button>
+            )}
           </div>
         </div>
       </header>
