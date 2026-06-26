@@ -78,6 +78,13 @@ interface ApiKeyRecord {
   expires_at: string | null;
   merchant_id: string | null;
   allowed_customer_codes: string[];
+  verified_phone: string | null;
+  verified_phone_at: string | null;
+  pending_phone: string | null;
+  pending_otp_hash: string | null;
+  pending_otp_expires_at: string | null;
+  pending_otp_attempts: number;
+  pending_otp_last_sent_at: string | null;
 }
 
 async function validateApiKey(supabase: any, rawKey: string) {
@@ -128,11 +135,29 @@ async function logUsage(supabase: any, apiKeyId: string, endpoint: string, statu
     .eq("id", apiKeyId);
 }
 
+// Merchant-scoped keys MUST have a verified phone before cargo data can flow.
+function requiresVerifiedPhone(apiKey: ApiKeyRecord) {
+  return !!apiKey.merchant_id;
+}
+
 function applyKeyScope(query: any, apiKey: ApiKeyRecord) {
+  // Phone verification trumps every other scope: only cargo for the verified phone is visible.
+  if (apiKey.verified_phone) query = query.eq("phone_number", apiKey.verified_phone);
   if (apiKey.allowed_branches?.length) query = query.in("branch_id", apiKey.allowed_branches);
   if (apiKey.merchant_id) query = query.eq("merchant_id", apiKey.merchant_id);
   if (apiKey.allowed_customer_codes?.length) query = query.in("customer_code", apiKey.allowed_customer_codes);
   return query;
+}
+
+function configError(message: string) {
+  return jsonResponse({
+    error: "configuration_error",
+    message,
+    requiredFlow: [
+      "POST /verify-phone/request { phone }",
+      "POST /verify-phone/confirm { phone, otp }",
+    ],
+  }, 412);
 }
 
 function shipmentDto(c: any, apiKey: ApiKeyRecord) {
