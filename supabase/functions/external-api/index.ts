@@ -478,75 +478,97 @@ Deno.serve(async (req) => {
       }
 
 
-      // POST /shipments  (create a new shipment for the merchant)
+      // POST /shipments  (Only Hub registers cargo on behalf of a verified phone)
       if (!sub && req.method === "POST") {
-        if (!apiKey.merchant_id) {
-          await logUsage(supabase, apiKey.id, "/shipments[POST]", 403, req);
-          return jsonResponse({ error: "This API key is not allowed to create shipments. A merchant-scoped key is required." }, 403);
-        }
         const body = await req.json().catch(() => ({} as any));
-        // Phone is always derived from the verified phone on the API key — the merchant's
-        // frontend can never override which user receives the cargo.
-        const phone = apiKey.verified_phone
-          ? apiKey.verified_phone
-          : String(body.phone || body.phone_number || "").trim();
-        if (apiKey.verified_phone && body.phone && body.phone !== apiKey.verified_phone) {
-          await logUsage(supabase, apiKey.id, "/shipments[POST]", 403, req);
+
+        // Phone: prefer the key's verified_phone if present; otherwise take the verified phone
+        // Only Hub passes in the body (it has already done OTP on its side).
+        const rawPhone = apiKey.verified_phone
+          || body.phone || body.phone_number || body.customer_phone || "";
+        const phone = normalizePhone(rawPhone);
+        if (!phone || !/^[6-9][0-9]{7}$/.test(phone)) {
+          await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
           return jsonResponse({
-            error: "Phone mismatch. This API key is bound to a verified phone; do not pass a different phone in the body.",
-          }, 403);
+            error: "phone is required and must be 8 digits starting with 6/7/8/9 (after normalization)",
+          }, 400);
         }
-        if (phone && !/^[6-9][0-9]{7}$/.test(phone)) {
-          await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
-          return jsonResponse({ error: "Invalid phone. Must be 8 digits starting with 6/7/8/9." }, 400);
-        }
-        const trackNumber = String(body.trackNumber || body.track_number || "").trim();
-        if (!trackNumber) {
-          await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
-          return jsonResponse({ error: "trackNumber is required" }, 400);
-        }
-        const customerCode = String(body.customerCode || body.customer_code || "").trim() || null;
-        if (apiKey.allowed_customer_codes?.length) {
-          if (!customerCode || !apiKey.allowed_customer_codes.includes(customerCode)) {
+        if (apiKey.verified_phone) {
+          const vp = normalizePhone(apiKey.verified_phone);
+          const bodyPhone = normalizePhone(body.phone || body.phone_number || body.customer_phone);
+          if (bodyPhone && vp && bodyPhone !== vp) {
             await logUsage(supabase, apiKey.id, "/shipments[POST]", 403, req);
             return jsonResponse({
-              error: "customer_code is required and must be one of allowed_customer_codes",
-              allowed: apiKey.allowed_customer_codes,
+              error: "Phone mismatch. This API key is bound to a verified phone; cannot register cargo for a different phone.",
             }, 403);
           }
         }
 
-        // Idempotency: if a row with the same track_number already exists for this merchant, return it
+        const trackNumber = String(
+          body.trackNumber || body.track_number || body.tracking_number || ""
+        ).trim();
+        if (!trackNumber) {
+          await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
+          return jsonResponse({ error: "tracking_number is required" }, 400);
+        }
+
+        // customer_code is internal-only; never required from the merchant.
+        // If the key restricts a customer_code list, enforce it; otherwise auto-derive from phone.
+        let customerCode = String(body.customerCode || body.customer_code || "").trim() || null;
+        if (apiKey.allowed_customer_codes?.length) {
+          if (customerCode && !apiKey.allowed_customer_codes.includes(customerCode)) {
+            await logUsage(supabase, apiKey.id, "/shipments[POST]", 403, req);
+            return jsonResponse({
+              error: "customer_code is not in this key's allowed list",
+              allowed: apiKey.allowed_customer_codes,
+            }, 403);
+          }
+          if (!customerCode) customerCode = apiKey.allowed_customer_codes[0];
+        }
+        if (!customerCode) customerCode = `PH${phone}`;
+
+        // Idempotency: same track_number under this key's scope → return existing row
         let existQ = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("track_number", trackNumber);
         existQ = applyKeyScope(existQ, apiKey);
         const { data: existing } = await existQ.maybeSingle();
         if (existing) {
           await logUsage(supabase, apiKey.id, "/shipments[POST]", 200, req);
-          return jsonResponse({ data: shipmentDto(existing, apiKey), idempotent: true });
+          return jsonResponse({
+            success: true,
+            data: shipmentDto(existing, apiKey),
+            idempotent: true,
+          });
         }
 
-        // Try to find a registered user by phone so cargo appears in their "Миний ачаа" immediately
+        // Link to a registered user (if any) so cargo appears in "Миний ачаа" immediately.
         let resolvedUserId: string | null = null;
-        if (phone) {
-          const { data: prof } = await supabase
-            .from("profiles").select("id").eq("phone", phone).maybeSingle();
-          if (prof?.id) resolvedUserId = prof.id;
-        }
+        const { data: prof } = await supabase
+          .from("profiles").select("id").eq("phone", phone).maybeSingle();
+        if (prof?.id) resolvedUserId = prof.id;
+
+        const customerName = String(body.customerName || body.customer_name || "").trim();
+        const description = String(body.description || "").trim();
+        const noteParts = [
+          customerName ? `Customer: ${customerName}` : "",
+          description,
+          body.notes ? String(body.notes) : "",
+        ].filter(Boolean);
 
         const insertRow: Record<string, any> = {
           track_number: trackNumber,
           phone_number: phone,
           user_id: resolvedUserId,
-          merchant_id: apiKey.merchant_id,
+          merchant_id: apiKey.merchant_id ?? null,
           customer_code: customerCode,
           external_ref: body.externalRef || body.external_ref || null,
-          description: body.description ?? body.notes ?? null,
           weight: body.weight ?? null,
           length: body.dimensions?.length ?? body.length ?? null,
           width: body.dimensions?.width ?? body.width ?? null,
           height: body.dimensions?.height ?? body.height ?? null,
-          notes: body.notes ?? null,
-          branch_id: apiKey.allowed_branches?.length === 1 ? apiKey.allowed_branches[0] : (body.branchId || body.branch_id || null),
+          notes: noteParts.length ? noteParts.join(" | ") : null,
+          branch_id: apiKey.allowed_branches?.length === 1
+            ? apiKey.allowed_branches[0]
+            : (body.branchId || body.branch_id || null),
         };
 
         const { data: created, error: insErr } = await supabase
@@ -555,11 +577,13 @@ Deno.serve(async (req) => {
           .select(SHIPMENT_COLUMNS)
           .single();
         if (insErr) {
+          console.error(`[external-api] POST /shipments key=${apiKey.id} phone=***${phone.slice(-4)} track=${trackNumber} error=${insErr.message}`);
           await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
           return jsonResponse({ error: insErr.message }, 400);
         }
+        console.log(`[external-api] POST /shipments key=${apiKey.id} phone=***${phone.slice(-4)} track=${trackNumber} status=201`);
         await logUsage(supabase, apiKey.id, "/shipments[POST]", 201, req);
-        return jsonResponse({ data: shipmentDto(created, apiKey) }, 201);
+        return jsonResponse({ success: true, data: shipmentDto(created, apiKey) }, 201);
       }
 
       // /shipments/:trackNumber/...
