@@ -135,10 +135,20 @@ async function logUsage(supabase: any, apiKeyId: string, endpoint: string, statu
     .eq("id", apiKeyId);
 }
 
+// Normalize a phone number for matching: strip spaces/+/976/non-digits and keep last 8 digits (MN format).
+function normalizePhone(input: string | null | undefined): string | null {
+  if (!input) return null;
+  const digits = String(input).replace(/\D/g, "");
+  if (!digits) return null;
+  const stripped = digits.startsWith("976") ? digits.slice(3) : digits;
+  return stripped.slice(-8);
+}
+
 // Merchant-scoped keys MUST have a verified phone before cargo data can flow.
 function requiresVerifiedPhone(apiKey: ApiKeyRecord) {
   return !!apiKey.merchant_id;
 }
+
 
 function applyKeyScope(query: any, apiKey: ApiKeyRecord) {
   // Phone verification trumps every other scope: only cargo for the verified phone is visible.
