@@ -253,6 +253,149 @@ Deno.serve(async (req) => {
       return jsonResponse({ status: "ok", timestamp: new Date().toISOString() });
     }
 
+    // ===== /verify-phone (OTP flow) =====
+    if (resource === "verify-phone") {
+      const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || null;
+
+      // GET /verify-phone — status of the current key's verification
+      if (!sub && req.method === "GET") {
+        await logUsage(supabase, apiKey.id, "/verify-phone", 200, req);
+        return jsonResponse({
+          verified: !!apiKey.verified_phone,
+          verifiedPhone: apiKey.verified_phone ? maskPhone(apiKey.verified_phone) : null,
+          verifiedAt: apiKey.verified_phone_at,
+          pendingPhone: apiKey.pending_phone ? maskPhone(apiKey.pending_phone) : null,
+          pendingExpiresAt: apiKey.pending_otp_expires_at,
+        });
+      }
+
+      // POST /verify-phone/request { phone }
+      if (sub === "request" && req.method === "POST") {
+        const body = await req.json().catch(() => ({} as any));
+        const phone = String(body.phone || "").trim();
+        if (!/^[6-9][0-9]{7}$/.test(phone)) {
+          await logUsage(supabase, apiKey.id, "/verify-phone/request", 400, req);
+          return jsonResponse({ error: "Invalid phone. Must be 8 digits starting with 6/7/8/9." }, 400);
+        }
+        // Resend cooldown: 60 seconds for the same pending phone
+        if (apiKey.pending_phone === phone && apiKey.pending_otp_last_sent_at) {
+          const elapsed = Date.now() - new Date(apiKey.pending_otp_last_sent_at).getTime();
+          if (elapsed < 60_000) {
+            const retry = Math.ceil((60_000 - elapsed) / 1000);
+            await logUsage(supabase, apiKey.id, "/verify-phone/request", 429, req);
+            return jsonResponse({ error: "Resend cooldown active", retryAfterSec: retry }, 429, {
+              "Retry-After": String(retry),
+            });
+          }
+        }
+
+        const otp = String(Math.floor(100000 + Math.random() * 900000));
+        const otpHash = await hashKey(otp);
+        const now = new Date();
+        const expires = new Date(now.getTime() + 5 * 60_000);
+
+        const { error: upErr } = await supabase.from("api_keys").update({
+          pending_phone: phone,
+          pending_otp_hash: otpHash,
+          pending_otp_expires_at: expires.toISOString(),
+          pending_otp_attempts: 0,
+          pending_otp_last_sent_at: now.toISOString(),
+        }).eq("id", apiKey.id);
+        if (upErr) throw upErr;
+
+        await supabase.from("api_key_otp_logs").insert({
+          api_key_id: apiKey.id, phone, event: "requested", ip: clientIp,
+        });
+
+        // SMS delivery is not wired yet — log server-side so an operator can read it,
+        // and (only if explicitly enabled) return the OTP for dev/testing.
+        console.log(`[OTP] api_key=${apiKey.id} phone=${phone} otp=${otp} expires=${expires.toISOString()}`);
+        const devReturn = Deno.env.get("OTP_RETURN_IN_RESPONSE") === "true";
+
+        await logUsage(supabase, apiKey.id, "/verify-phone/request", 200, req);
+        return jsonResponse({
+          success: true,
+          message: "OTP issued. Expires in 5 minutes.",
+          expiresInSec: 300,
+          ...(devReturn ? { devOtp: otp } : {}),
+        });
+      }
+
+      // POST /verify-phone/confirm { phone, otp }
+      if (sub === "confirm" && req.method === "POST") {
+        const body = await req.json().catch(() => ({} as any));
+        const phone = String(body.phone || "").trim();
+        const otp = String(body.otp || "").trim();
+
+        if (!apiKey.pending_phone || apiKey.pending_phone !== phone) {
+          await logUsage(supabase, apiKey.id, "/verify-phone/confirm", 400, req);
+          return jsonResponse({ error: "No pending verification for this phone" }, 400);
+        }
+        if (!apiKey.pending_otp_expires_at || new Date(apiKey.pending_otp_expires_at) < new Date()) {
+          await supabase.from("api_key_otp_logs").insert({
+            api_key_id: apiKey.id, phone, event: "expired", ip: clientIp,
+          });
+          await logUsage(supabase, apiKey.id, "/verify-phone/confirm", 400, req);
+          return jsonResponse({ error: "OTP expired. Request a new one." }, 400);
+        }
+        if ((apiKey.pending_otp_attempts || 0) >= 5) {
+          await logUsage(supabase, apiKey.id, "/verify-phone/confirm", 429, req);
+          return jsonResponse({ error: "Too many attempts. Request a new OTP." }, 429);
+        }
+
+        const otpHash = await hashKey(otp);
+        if (otpHash !== apiKey.pending_otp_hash) {
+          await supabase.from("api_keys")
+            .update({ pending_otp_attempts: (apiKey.pending_otp_attempts || 0) + 1 })
+            .eq("id", apiKey.id);
+          await supabase.from("api_key_otp_logs").insert({
+            api_key_id: apiKey.id, phone, event: "failed", ip: clientIp,
+          });
+          await logUsage(supabase, apiKey.id, "/verify-phone/confirm", 400, req);
+          return jsonResponse({ error: "Invalid OTP" }, 400);
+        }
+
+        // Success — promote pending to verified. Old verified phone is replaced atomically.
+        const { error: promErr } = await supabase.from("api_keys").update({
+          verified_phone: phone,
+          verified_phone_at: new Date().toISOString(),
+          pending_phone: null,
+          pending_otp_hash: null,
+          pending_otp_expires_at: null,
+          pending_otp_attempts: 0,
+          pending_otp_last_sent_at: null,
+        }).eq("id", apiKey.id);
+        if (promErr) throw promErr;
+
+        await supabase.from("api_key_otp_logs").insert({
+          api_key_id: apiKey.id, phone, event: "verified", ip: clientIp,
+        });
+        await logUsage(supabase, apiKey.id, "/verify-phone/confirm", 200, req);
+        return jsonResponse({
+          success: true,
+          verifiedPhone: maskPhone(phone),
+          verifiedAt: new Date().toISOString(),
+        });
+      }
+
+      await logUsage(supabase, apiKey.id, "/verify-phone", 404, req);
+      return jsonResponse({
+        error: "Not found",
+        endpoints: [
+          "GET /verify-phone",
+          "POST /verify-phone/request { phone }",
+          "POST /verify-phone/confirm { phone, otp }",
+        ],
+      }, 404);
+    }
+
+    // For merchant-scoped keys: cargo endpoints require a verified phone first.
+    if ((resource === "shipments" || resource === "cargo") && requiresVerifiedPhone(apiKey) && !apiKey.verified_phone) {
+      await logUsage(supabase, apiKey.id, `/${resource}[unverified]`, 412, req);
+      return configError("Verified phone is required before shipment data is accessible.");
+    }
+
+
     // ===== /shipments =====
     if (resource === "shipments") {
       // GET /shipments
