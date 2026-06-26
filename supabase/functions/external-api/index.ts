@@ -204,15 +204,22 @@ function shipmentDto(c: any, apiKey: ApiKeyRecord) {
     created_at: c.created_at,
     updated_at: c.updated_at,
   };
+  // Normalized fee fields — always numeric or null, never NaN/empty string.
+  const numOrNull = (v: any) => {
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
   if (apiKey.allow_price) {
-    const fee = {
-      total: c.price,
-      cubicMeters: c.total_cubic_meters,
-      weightPrice: c.weight && c.kg_price ? Number(c.weight) * Number(c.kg_price) : null,
-      volumePrice: c.total_cubic_meters && c.cubic_meter_price
-        ? Number(c.total_cubic_meters) * Number(c.cubic_meter_price) : null,
-    };
-    dto.fee = fee;
+    const weightPrice = c.weight && c.kg_price ? numOrNull(Number(c.weight) * Number(c.kg_price)) : null;
+    const volumePrice = c.total_cubic_meters && c.cubic_meter_price
+      ? numOrNull(Number(c.total_cubic_meters) * Number(c.cubic_meter_price)) : null;
+    const total = numOrNull(c.price);
+    dto.fee = { total, cubicMeters: numOrNull(c.total_cubic_meters), weightPrice, volumePrice };
+    dto.fee_amount = total;
+    dto.fee_currency = "MNT";
+  } else {
+    dto.fee_amount = null;
+    dto.fee_currency = "MNT";
   }
   return dto;
 }
