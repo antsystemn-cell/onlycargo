@@ -203,11 +203,6 @@ export default function Home() {
               return (
                 <Link key={f.title} to={f.to} className="block">
                   <div className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${f.bg} transition-all hover:shadow-md hover:-translate-y-0.5`}>
-                    {f.ribbon && (
-                      <div className="absolute -left-8 top-4 -rotate-45 bg-primary px-10 py-1 text-[10px] font-semibold text-primary-foreground shadow">
-                        {f.ribbon}
-                      </div>
-                    )}
                     <div className="flex items-center justify-between p-5 pr-4 min-h-[110px]">
                       <div className="flex-1 min-w-0">
                         <h3 className="text-base font-semibold text-foreground">{f.title}</h3>
