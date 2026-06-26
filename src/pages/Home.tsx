@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Package, LogIn, Search as SearchIcon, Plus, Truck, MapPin, Calculator } from 'lucide-react';
+import { Package, LogIn, Search as SearchIcon, Plus, Truck, MapPin, Calculator, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -96,26 +96,37 @@ export default function Home() {
   return (
     <div className="flex flex-col bg-background min-h-screen">
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-sm px-4 py-3">
-        <div className="mx-auto flex max-w-md items-center justify-between">
+        <div className="relative mx-auto flex max-w-md items-center justify-center">
           <div className="flex items-center gap-2">
-            <img src={logoUrl} alt="Logo" className="h-8 w-8 object-contain" />
-            <h1 className="text-lg font-bold">OnlyCargo</h1>
+            <img src={logoUrl} alt="OnlyCargo" className="h-9 w-9 object-contain" />
+            <h1 className="text-lg font-bold tracking-tight">OnlyCargo</h1>
           </div>
-          {user ? (
-            <div className="flex items-center gap-2">
-              {isAdmin && (
-                <Button variant="outline" size="sm" onClick={() => navigate('/admin')}>
-                  Admin
-                </Button>
-              )}
-              <span className="text-sm text-muted-foreground">{profile?.phone}</span>
-            </div>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => navigate('/auth')}>
-              <LogIn className="mr-2 h-4 w-4" />
-              Нэвтрэх
-            </Button>
-          )}
+          <div className="absolute right-0 flex items-center gap-2">
+            {user ? (
+              <>
+                {isAdmin && (
+                  <Button variant="outline" size="sm" onClick={() => navigate('/admin')}>
+                    Admin
+                  </Button>
+                )}
+                <button
+                  onClick={() => navigate('/profile')}
+                  aria-label="Профайл"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+                >
+                  <User className="h-5 w-5" />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => navigate('/auth')}
+                aria-label="Нэвтрэх"
+                className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+              >
+                <User className="h-5 w-5" />
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
