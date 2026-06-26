@@ -418,12 +418,7 @@ Deno.serve(async (req) => {
         const extStatus = url.searchParams.get("status") as ExternalStatus | null;
         const q = url.searchParams.get("q");
         const merchantId = url.searchParams.get("merchant_id");
-        const customerCode = url.searchParams.get("customer_code");
-        const from = url.searchParams.get("from");
-        const to = url.searchParams.get("to");
 
-        let query = supabase.from("cargo").select(SHIPMENT_COLUMNS, { count: "exact" });
-        query = applyKeyScope(query, apiKey);
 
         const merchantId = url.searchParams.get("merchant_id");
         const customerCode = url.searchParams.get("customer_code");
