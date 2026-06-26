@@ -151,8 +151,11 @@ function requiresVerifiedPhone(apiKey: ApiKeyRecord) {
 
 
 function applyKeyScope(query: any, apiKey: ApiKeyRecord) {
-  // Phone verification trumps every other scope: only cargo for the verified phone is visible.
-  if (apiKey.verified_phone) query = query.eq("phone_number", apiKey.verified_phone);
+  // If the key is bound to a verified phone, that always wins (last-8-digit tolerant).
+  if (apiKey.verified_phone) {
+    const vp = normalizePhone(apiKey.verified_phone);
+    if (vp) query = query.ilike("phone_number", `%${vp}`);
+  }
   if (apiKey.allowed_branches?.length) query = query.in("branch_id", apiKey.allowed_branches);
   if (apiKey.merchant_id) query = query.eq("merchant_id", apiKey.merchant_id);
   if (apiKey.allowed_customer_codes?.length) query = query.in("customer_code", apiKey.allowed_customer_codes);
@@ -201,15 +204,22 @@ function shipmentDto(c: any, apiKey: ApiKeyRecord) {
     created_at: c.created_at,
     updated_at: c.updated_at,
   };
+  // Normalized fee fields — always numeric or null, never NaN/empty string.
+  const numOrNull = (v: any) => {
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
   if (apiKey.allow_price) {
-    const fee = {
-      total: c.price,
-      cubicMeters: c.total_cubic_meters,
-      weightPrice: c.weight && c.kg_price ? Number(c.weight) * Number(c.kg_price) : null,
-      volumePrice: c.total_cubic_meters && c.cubic_meter_price
-        ? Number(c.total_cubic_meters) * Number(c.cubic_meter_price) : null,
-    };
-    dto.fee = fee;
+    const weightPrice = c.weight && c.kg_price ? numOrNull(Number(c.weight) * Number(c.kg_price)) : null;
+    const volumePrice = c.total_cubic_meters && c.cubic_meter_price
+      ? numOrNull(Number(c.total_cubic_meters) * Number(c.cubic_meter_price)) : null;
+    const total = numOrNull(c.price);
+    dto.fee = { total, cubicMeters: numOrNull(c.total_cubic_meters), weightPrice, volumePrice };
+    dto.fee_amount = total;
+    dto.fee_currency = "MNT";
+  } else {
+    dto.fee_amount = null;
+    dto.fee_currency = "MNT";
   }
   return dto;
 }
@@ -399,11 +409,9 @@ Deno.serve(async (req) => {
       }, 404);
     }
 
-    // For merchant-scoped keys: cargo endpoints require a verified phone first.
-    if ((resource === "shipments" || resource === "cargo") && requiresVerifiedPhone(apiKey) && !apiKey.verified_phone) {
-      await logUsage(supabase, apiKey.id, `/${resource}[unverified]`, 412, req);
-      return configError("Verified phone is required before shipment data is accessible.");
-    }
+    // Note: merchant-scoped keys no longer require an in-OnlyCargo OTP — Only Hub performs OTP
+    // on its side and passes the verified phone in the request. If a key DOES carry a
+    // verified_phone, applyKeyScope still pins all queries to that phone.
 
 
     // ===== /shipments =====
@@ -461,84 +469,133 @@ Deno.serve(async (req) => {
 
         const items = (data || []).map((c: any) => shipmentDto(c, apiKey));
         const phoneTag = effectivePhone ? `***${effectivePhone.slice(-4)}` : "none";
-        console.log(`[external-api] GET /shipments key=${apiKey.id} phone=${phoneTag} returned=${items.length} total=${count || 0} status=200`);
+
+        // Per-status counts using the SAME filters as the listing (no pagination, status filter removed).
+        let countsQ = supabase.from("cargo").select("status", { count: "exact", head: false });
+        countsQ = applyKeyScope(countsQ, apiKey);
+        if (merchantId) countsQ = countsQ.eq("merchant_id", merchantId);
+        if (customerCode) countsQ = countsQ.eq("customer_code", customerCode);
+        if (from) countsQ = countsQ.gte("created_at", from);
+        if (to) countsQ = countsQ.lte("created_at", to);
+        if (effectivePhone) countsQ = countsQ.ilike("phone_number", `%${effectivePhone}`);
+        if (q) {
+          if (apiKey.allow_phone_search) countsQ = countsQ.or(`track_number.ilike.%${q}%,phone_number.ilike.%${q}%`);
+          else countsQ = countsQ.ilike("track_number", `%${q}%`);
+        }
+        const { data: countRows } = await countsQ.limit(10000);
+        const statusCounts: Record<string, number> = {};
+        for (const row of (countRows || []) as Array<{ status: string }>) {
+          const ext = INTERNAL_TO_EXTERNAL[row.status as InternalStatus] ?? row.status;
+          statusCounts[ext] = (statusCounts[ext] || 0) + 1;
+        }
+
+        console.log(`[external-api] GET /shipments key=${apiKey.id} phone=${phoneTag} status_filter=${extStatus ?? "none"} returned=${items.length} total=${count || 0} status=200`);
         await logUsage(supabase, apiKey.id, "/shipments", 200, req);
         return jsonResponse({
           data: items,
-          meta: { page, pageSize, total: count || 0, hasMore: (count || 0) > page * pageSize },
+          meta: {
+            page,
+            pageSize,
+            total: count || 0,
+            hasMore: (count || 0) > page * pageSize,
+            phone_filter: effectivePhone ? `***${effectivePhone.slice(-4)}` : null,
+            status_counts: statusCounts,
+          },
         });
       }
 
 
-      // POST /shipments  (create a new shipment for the merchant)
+      // POST /shipments  (Only Hub registers cargo on behalf of a verified phone)
       if (!sub && req.method === "POST") {
-        if (!apiKey.merchant_id) {
-          await logUsage(supabase, apiKey.id, "/shipments[POST]", 403, req);
-          return jsonResponse({ error: "This API key is not allowed to create shipments. A merchant-scoped key is required." }, 403);
-        }
         const body = await req.json().catch(() => ({} as any));
-        // Phone is always derived from the verified phone on the API key — the merchant's
-        // frontend can never override which user receives the cargo.
-        const phone = apiKey.verified_phone
-          ? apiKey.verified_phone
-          : String(body.phone || body.phone_number || "").trim();
-        if (apiKey.verified_phone && body.phone && body.phone !== apiKey.verified_phone) {
-          await logUsage(supabase, apiKey.id, "/shipments[POST]", 403, req);
+
+        // Phone: prefer the key's verified_phone if present; otherwise take the verified phone
+        // Only Hub passes in the body (it has already done OTP on its side).
+        const rawPhone = apiKey.verified_phone
+          || body.phone || body.phone_number || body.customer_phone || "";
+        const phone = normalizePhone(rawPhone);
+        if (!phone || !/^[6-9][0-9]{7}$/.test(phone)) {
+          await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
           return jsonResponse({
-            error: "Phone mismatch. This API key is bound to a verified phone; do not pass a different phone in the body.",
-          }, 403);
+            error: "phone is required and must be 8 digits starting with 6/7/8/9 (after normalization)",
+          }, 400);
         }
-        if (phone && !/^[6-9][0-9]{7}$/.test(phone)) {
-          await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
-          return jsonResponse({ error: "Invalid phone. Must be 8 digits starting with 6/7/8/9." }, 400);
-        }
-        const trackNumber = String(body.trackNumber || body.track_number || "").trim();
-        if (!trackNumber) {
-          await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
-          return jsonResponse({ error: "trackNumber is required" }, 400);
-        }
-        const customerCode = String(body.customerCode || body.customer_code || "").trim() || null;
-        if (apiKey.allowed_customer_codes?.length) {
-          if (!customerCode || !apiKey.allowed_customer_codes.includes(customerCode)) {
+        if (apiKey.verified_phone) {
+          const vp = normalizePhone(apiKey.verified_phone);
+          const bodyPhone = normalizePhone(body.phone || body.phone_number || body.customer_phone);
+          if (bodyPhone && vp && bodyPhone !== vp) {
             await logUsage(supabase, apiKey.id, "/shipments[POST]", 403, req);
             return jsonResponse({
-              error: "customer_code is required and must be one of allowed_customer_codes",
-              allowed: apiKey.allowed_customer_codes,
+              error: "Phone mismatch. This API key is bound to a verified phone; cannot register cargo for a different phone.",
             }, 403);
           }
         }
 
-        // Idempotency: if a row with the same track_number already exists for this merchant, return it
+        const trackNumber = String(
+          body.trackNumber || body.track_number || body.tracking_number || ""
+        ).trim();
+        if (!trackNumber) {
+          await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
+          return jsonResponse({ error: "tracking_number is required" }, 400);
+        }
+
+        // customer_code is internal-only; never required from the merchant.
+        // If the key restricts a customer_code list, enforce it; otherwise auto-derive from phone.
+        let customerCode = String(body.customerCode || body.customer_code || "").trim() || null;
+        if (apiKey.allowed_customer_codes?.length) {
+          if (customerCode && !apiKey.allowed_customer_codes.includes(customerCode)) {
+            await logUsage(supabase, apiKey.id, "/shipments[POST]", 403, req);
+            return jsonResponse({
+              error: "customer_code is not in this key's allowed list",
+              allowed: apiKey.allowed_customer_codes,
+            }, 403);
+          }
+          if (!customerCode) customerCode = apiKey.allowed_customer_codes[0];
+        }
+        if (!customerCode) customerCode = `PH${phone}`;
+
+        // Idempotency: same track_number under this key's scope → return existing row
         let existQ = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("track_number", trackNumber);
         existQ = applyKeyScope(existQ, apiKey);
         const { data: existing } = await existQ.maybeSingle();
         if (existing) {
           await logUsage(supabase, apiKey.id, "/shipments[POST]", 200, req);
-          return jsonResponse({ data: shipmentDto(existing, apiKey), idempotent: true });
+          return jsonResponse({
+            success: true,
+            data: shipmentDto(existing, apiKey),
+            idempotent: true,
+          });
         }
 
-        // Try to find a registered user by phone so cargo appears in their "Миний ачаа" immediately
+        // Link to a registered user (if any) so cargo appears in "Миний ачаа" immediately.
         let resolvedUserId: string | null = null;
-        if (phone) {
-          const { data: prof } = await supabase
-            .from("profiles").select("id").eq("phone", phone).maybeSingle();
-          if (prof?.id) resolvedUserId = prof.id;
-        }
+        const { data: prof } = await supabase
+          .from("profiles").select("id").eq("phone", phone).maybeSingle();
+        if (prof?.id) resolvedUserId = prof.id;
+
+        const customerName = String(body.customerName || body.customer_name || "").trim();
+        const description = String(body.description || "").trim();
+        const noteParts = [
+          customerName ? `Customer: ${customerName}` : "",
+          description,
+          body.notes ? String(body.notes) : "",
+        ].filter(Boolean);
 
         const insertRow: Record<string, any> = {
           track_number: trackNumber,
           phone_number: phone,
           user_id: resolvedUserId,
-          merchant_id: apiKey.merchant_id,
+          merchant_id: apiKey.merchant_id ?? null,
           customer_code: customerCode,
           external_ref: body.externalRef || body.external_ref || null,
-          description: body.description ?? body.notes ?? null,
           weight: body.weight ?? null,
           length: body.dimensions?.length ?? body.length ?? null,
           width: body.dimensions?.width ?? body.width ?? null,
           height: body.dimensions?.height ?? body.height ?? null,
-          notes: body.notes ?? null,
-          branch_id: apiKey.allowed_branches?.length === 1 ? apiKey.allowed_branches[0] : (body.branchId || body.branch_id || null),
+          notes: noteParts.length ? noteParts.join(" | ") : null,
+          branch_id: apiKey.allowed_branches?.length === 1
+            ? apiKey.allowed_branches[0]
+            : (body.branchId || body.branch_id || null),
         };
 
         const { data: created, error: insErr } = await supabase
@@ -547,19 +604,27 @@ Deno.serve(async (req) => {
           .select(SHIPMENT_COLUMNS)
           .single();
         if (insErr) {
+          console.error(`[external-api] POST /shipments key=${apiKey.id} phone=***${phone.slice(-4)} track=${trackNumber} error=${insErr.message}`);
           await logUsage(supabase, apiKey.id, "/shipments[POST]", 400, req);
           return jsonResponse({ error: insErr.message }, 400);
         }
+        console.log(`[external-api] POST /shipments key=${apiKey.id} phone=***${phone.slice(-4)} track=${trackNumber} status=201`);
         await logUsage(supabase, apiKey.id, "/shipments[POST]", 201, req);
-        return jsonResponse({ data: shipmentDto(created, apiKey) }, 201);
+        return jsonResponse({ success: true, data: shipmentDto(created, apiKey) }, 201);
       }
 
       // /shipments/:trackNumber/...
 
       if (sub) {
-        // Resolve cargo with scoping
+        // Resolve cargo with scoping + optional ?phone= guard for detail/sub-resource calls.
         let lookup = supabase.from("cargo").select(SHIPMENT_COLUMNS).eq("track_number", sub);
         lookup = applyKeyScope(lookup, apiKey);
+        const detailPhone = normalizePhone(
+          url.searchParams.get("phone")
+          || url.searchParams.get("phone_number")
+          || url.searchParams.get("customer_phone")
+        );
+        if (detailPhone) lookup = lookup.ilike("phone_number", `%${detailPhone}`);
         const { data: cargo, error: lookupErr } = await lookup.maybeSingle();
         if (lookupErr) throw lookupErr;
         if (!cargo) {
@@ -839,15 +904,15 @@ Deno.serve(async (req) => {
       {
         error: "Not found",
         available_endpoints: [
-          "GET /shipments?page=&pageSize=&sort=&order=&status=&q=&merchant_id=&customer_code=&from=&to=",
-          "GET /shipments/:trackNumber",
-          "GET /shipments/:trackNumber/status",
-          "GET /shipments/:trackNumber/fee",
-          "GET /shipments/:trackNumber/history",
-          "GET /shipments/:trackNumber/images",
-          "GET /shipments/:trackNumber/location",
-          "POST /shipments/:trackNumber/status { status }",
-          "POST /shipments { trackNumber, phone, customerCode?, weight?, dimensions?, notes?, externalRef? }",
+          "GET /shipments?phone=&page=&pageSize=&status=&from=&to=&q=",
+          "GET /shipments/:trackingNumber?phone=",
+          "GET /shipments/:trackingNumber/status",
+          "GET /shipments/:trackingNumber/fee",
+          "GET /shipments/:trackingNumber/history",
+          "GET /shipments/:trackingNumber/images",
+          "GET /shipments/:trackingNumber/location",
+          "POST /shipments/:trackingNumber/status { status }",
+          "POST /shipments { phone, tracking_number, customer_name?, description?, notes?, weight?, dimensions?, externalRef? }",
           "PATCH /shipments/:trackNumber { weight?, dimensions?, notes?, externalRef?, phone? }",
           "POST /shipments/:trackNumber/cancel",
           "GET /verify-phone",
