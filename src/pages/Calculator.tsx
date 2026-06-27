@@ -65,12 +65,6 @@ export default function Calculator() {
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-sm px-4 py-3">
-        <div className="mx-auto flex max-w-md items-center gap-2">
-          <CalcIcon className="h-5 w-5 text-primary" />
-          <h1 className="text-lg font-semibold">Тээврийн тооцоолуур</h1>
-        </div>
-      </header>
 
       <main className="flex-1 px-4 py-6">
         <div className="mx-auto max-w-md space-y-6">

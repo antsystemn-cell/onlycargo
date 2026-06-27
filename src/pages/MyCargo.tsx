@@ -182,52 +182,6 @@ export default function MyCargo() {
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-sm px-4 py-3">
-        <div className="mx-auto flex max-w-md items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">Миний ачаа</h1>
-          </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="mr-1 h-4 w-4" />
-                Урьдчилан бүртгэх
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Ачаа урьдчилан бүртгэх</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Трак дугаар *</label>
-                  <Input
-                    value={newTrackNumber}
-                    onChange={(e) => setNewTrackNumber(e.target.value)}
-                    placeholder="SF1234567890"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Тайлбар</label>
-                  <Input
-                    value={newDescription}
-                    onChange={(e) => setNewDescription(e.target.value)}
-                    placeholder="Гутал, 2 ширхэг"
-                  />
-                </div>
-                <Button
-                  className="w-full"
-                  onClick={handlePreregister}
-                  disabled={!newTrackNumber.trim() || isSubmitting}
-                >
-                  {isSubmitting ? 'Бүртгэж байна...' : 'Бүртгэх'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </header>
 
       <main className="flex-1 px-4 py-6">
         <div className="mx-auto max-w-md">
