@@ -197,18 +197,6 @@ export default function Profile() {
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-card px-4 py-3">
-        <div className="mx-auto flex max-w-md items-center justify-between">
-          <div className="flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">Профайл</h1>
-          </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Гарах
-          </Button>
-        </div>
-      </header>
 
       <main className="flex-1 px-4 py-6">
         <div className="mx-auto max-w-md space-y-6">
