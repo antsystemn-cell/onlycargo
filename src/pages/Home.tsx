@@ -279,6 +279,39 @@ export default function Home() {
               );
             })}
           </div>
+
+          {/* Service info cards */}
+          <div className="pt-2 space-y-3">
+            <h2 className="px-1 text-sm font-semibold text-muted-foreground">Нэмэлт үйлчилгээ</h2>
+
+            <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-rose-50 to-red-50">
+              <div className="flex items-start gap-4 p-5">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 shadow-sm">
+                  <Warehouse className="h-7 w-7" strokeWidth={1.5} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-semibold text-foreground">Хятад дотоодын тээвэр</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Хятадын аль ч хотоос барааг тань дотоод тээврээр хүлээн авч, Эрээн хот дахь манай агуулах хүртэл хүргэнэ.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-emerald-50 to-teal-50">
+              <div className="flex items-start gap-4 p-5">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 shadow-sm">
+                  <Navigation className="h-7 w-7" strokeWidth={1.5} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-semibold text-foreground">Монгол дахь хүргэлт</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Улаанбаатар болон орон нутгийн аль ч цэгт ачааг тань шууд гар дээр нь хүргэж өгнө.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>
