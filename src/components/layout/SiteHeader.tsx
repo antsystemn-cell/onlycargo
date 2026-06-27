@@ -14,9 +14,8 @@ export default function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-sm px-4 py-3">
       <div className="relative mx-auto flex max-w-md items-center justify-center">
-        <Link to="/" aria-label="Нүүр хуудас" className="flex items-center gap-2 transition hover:opacity-80">
-          <img src={logoUrl} alt="OnlyCargo" className="h-9 w-9 object-contain" />
-          <h1 className="text-lg font-bold tracking-tight">OnlyCargo</h1>
+        <Link to="/" aria-label="Нүүр хуудас" className="flex items-center transition hover:opacity-80">
+          <img src={logoUrl} alt="OnlyCargo" className="h-10 w-auto object-contain" />
         </Link>
         <div className="absolute left-0 flex items-center">
           <Sheet>
