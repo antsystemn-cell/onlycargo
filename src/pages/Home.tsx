@@ -16,7 +16,7 @@ import posterMongoliaDelivery from '@/assets/poster-mongolia-delivery.jpg';
 
 export default function Home() {
   const { user, profile, isAdmin, isLoading } = useAuth();
-  const { logoUrl } = useSiteSettings();
+  const { logoUrl, servicePosters } = useSiteSettings();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Cargo[]>([]);
@@ -283,52 +283,38 @@ export default function Home() {
           </div>
 
           {/* Service posters */}
-          <div className="pt-2 space-y-3">
-            <h2 className="px-1 text-sm font-semibold text-muted-foreground">Нэмэлт үйлчилгээ</h2>
-
-            <div className="relative overflow-hidden rounded-2xl border shadow-sm aspect-[16/10]">
-              <img
-                src={posterChinaTransport}
-                alt="Хятад дотоодын тээвэр"
-                loading="lazy"
-                width={1280}
-                height={768}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-medium backdrop-blur-sm">
-                  <Warehouse className="h-3 w-3" />
-                  Хятад → Эрээн
-                </div>
-                <h3 className="text-lg font-bold leading-tight drop-shadow">Хятад дотоодын тээвэр</h3>
-                <p className="mt-1 text-xs leading-relaxed text-white/90 drop-shadow">
-                  Хятадын аль ч хотоос барааг тань дотоод тээврээр хүлээн авч Эрээн агуулах хүртэл хүргэнэ.
-                </p>
-              </div>
+          {servicePosters.some((p) => p.enabled) && (
+            <div className="pt-2 space-y-3">
+              <h2 className="px-1 text-sm font-semibold text-muted-foreground">Нэмэлт үйлчилгээ</h2>
+              {servicePosters.filter((p) => p.enabled).map((poster, idx) => {
+                const fallback = idx === 0 ? posterChinaTransport : posterMongoliaDelivery;
+                const Icon = idx === 0 ? Warehouse : Navigation;
+                return (
+                  <div key={poster.id} className="relative overflow-hidden rounded-2xl border shadow-sm aspect-[16/8]">
+                    <img
+                      src={poster.imageUrl || fallback}
+                      alt={poster.title}
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 p-3">
+                      {poster.badge && (
+                        <div className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                          <Icon className="h-3 w-3" />
+                          {poster.badge}
+                        </div>
+                      )}
+                      <h3 className="text-sm font-bold leading-tight text-white drop-shadow">{poster.title}</h3>
+                      <p className="mt-0.5 text-[11px] leading-snug text-white/90 drop-shadow line-clamp-2">
+                        {poster.description}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-
-            <div className="relative overflow-hidden rounded-2xl border shadow-sm aspect-[16/10]">
-              <img
-                src={posterMongoliaDelivery}
-                alt="Монгол дахь хүргэлт"
-                loading="lazy"
-                width={1280}
-                height={768}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-medium backdrop-blur-sm">
-                  <Navigation className="h-3 w-3" />
-                  Хаалга хүртэл
-                </div>
-                <h3 className="text-lg font-bold leading-tight drop-shadow">Монгол дахь хүргэлт</h3>
-                <p className="mt-1 text-xs leading-relaxed text-white/90 drop-shadow">
-                  Улаанбаатар болон орон нутгийн аль ч цэгт ачааг тань шууд гар дээр нь хүргэнэ.
-                </p>
-              </div>
-            </div>
+          )}
           </div>
         </div>
       </main>
