@@ -2,12 +2,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Package, LogIn, MapPin, Calculator, User, Menu, Home as HomeIcon, Wallet, Settings, LogOut } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
-import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { supabase } from '@/integrations/supabase/client';
+import logoAsset from '@/assets/onlycargo-logo.png.asset.json';
+
+const logoUrl = logoAsset.url;
 
 export default function SiteHeader() {
   const { user, isAdmin } = useAuth();
-  const { logoUrl } = useSiteSettings();
   const navigate = useNavigate();
 
   return (
