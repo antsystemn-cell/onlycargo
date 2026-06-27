@@ -172,6 +172,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     tierConfig: defaultSettings.tierConfig,
     paymentIcons: defaultSettings.paymentIcons,
     seoSettings: defaultSettings.seoSettings,
+    servicePosters: defaultSettings.servicePosters,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -218,6 +219,12 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
           koreaWarehouseAddresses = rawKoreaAddresses as KoreaWarehouseAddress[];
         }
         
+        const rawPosters = settingsMap.get('service_posters');
+        let servicePosters: ServicePoster[] = defaultServicePosters;
+        if (Array.isArray(rawPosters) && rawPosters.length > 0) {
+          servicePosters = rawPosters as ServicePoster[];
+        }
+
         setSettings({
           logoUrl: (settingsMap.get('logo_url') as string) || defaultSettings.logoUrl,
           faviconUrl: (settingsMap.get('favicon_url') as string) || defaultSettings.faviconUrl,
@@ -229,6 +236,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
           tierConfig,
           paymentIcons: (settingsMap.get('payment_icons') as PaymentIconConfig) || defaultSettings.paymentIcons,
           seoSettings: (settingsMap.get('seo_settings') as SeoSettingsMap) || defaultSettings.seoSettings,
+          servicePosters,
         });
       }
     } catch (error) {
