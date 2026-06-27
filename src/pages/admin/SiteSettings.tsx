@@ -13,11 +13,11 @@ import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { FaviconSettings } from '@/components/admin/FaviconSettings';
 import { SeoSettings, type SeoSettingsData } from '@/components/admin/SeoSettings';
 import { PaymentIconSettings } from '@/components/admin/PaymentIconSettings';
-import type { PaymentIconConfig, ChinaWarehouseAddress, KoreaWarehouseAddress } from '@/hooks/useSiteSettings';
+import type { PaymentIconConfig, ChinaWarehouseAddress, KoreaWarehouseAddress, ServicePoster } from '@/hooks/useSiteSettings';
 
 export default function SiteSettings() {
   const { toast } = useToast();
-  const { logoUrl, faviconUrl, chinaWarehouseAddresses, koreaWarehouseAddresses, homepageBanner, pricing, paymentIcons, seoSettings, refresh } = useSiteSettings();
+  const { logoUrl, faviconUrl, chinaWarehouseAddresses, koreaWarehouseAddresses, homepageBanner, pricing, paymentIcons, seoSettings, servicePosters, refresh } = useSiteSettings();
   const [isSaving, setIsSaving] = useState(false);
 
   // Logo
@@ -53,6 +53,10 @@ export default function SiteSettings() {
   const [currentSeoSettings, setCurrentSeoSettings] = useState<SeoSettingsData>(seoSettings || {});
   const [currentPaymentIcons, setCurrentPaymentIcons] = useState<PaymentIconConfig>(paymentIcons || {});
 
+  // Service posters
+  const [posters, setPosters] = useState<ServicePoster[]>(servicePosters);
+  const [uploadingPosterId, setUploadingPosterId] = useState<string | null>(null);
+
   useEffect(() => {
     setBannerEnabled(homepageBanner.enabled);
     setBannerTitle(homepageBanner.title);
@@ -70,7 +74,8 @@ export default function SiteSettings() {
     setCurrentFaviconUrl(faviconUrl);
     setCurrentSeoSettings(seoSettings || {});
     setCurrentPaymentIcons(paymentIcons || {});
-  }, [homepageBanner, chinaWarehouseAddresses, koreaWarehouseAddresses, pricing, faviconUrl, seoSettings, paymentIcons]);
+    setPosters(servicePosters);
+  }, [homepageBanner, chinaWarehouseAddresses, koreaWarehouseAddresses, pricing, faviconUrl, seoSettings, paymentIcons, servicePosters]);
 
 
   const handleLogoUpload = async () => {
@@ -173,6 +178,30 @@ export default function SiteSettings() {
     );
   };
 
+  const updatePoster = (id: string, field: keyof ServicePoster, value: string | boolean) => {
+    setPosters((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
+  };
+
+  const handlePosterUpload = async (id: string, file: File) => {
+    setUploadingPosterId(id);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `poster-${id}-${Date.now()}.${fileExt}`;
+      const { data, error } = await supabase.storage
+        .from('site-assets')
+        .upload(fileName, file, { upsert: true });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('site-assets').getPublicUrl(data.path);
+      updatePoster(id, 'imageUrl', urlData.publicUrl);
+      toast({ title: 'Зураг хуулагдлаа' });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Зураг хуулахад алдаа гарлаа', variant: 'destructive' });
+    } finally {
+      setUploadingPosterId(null);
+    }
+  };
+
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
@@ -216,6 +245,7 @@ export default function SiteSettings() {
         },
         { key: 'seo_settings', value: JSON.stringify(currentSeoSettings) },
         { key: 'payment_icons', value: JSON.stringify(currentPaymentIcons) },
+        { key: 'service_posters', value: JSON.stringify(posters) },
       ];
 
       for (const update of updates) {
@@ -665,6 +695,95 @@ export default function SiteSettings() {
                 </li>
               </ul>
             </div>
+          </CardContent>
+        </Card>
+
+
+        {/* Service Posters */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Image className="h-4 w-4" />
+              Нэмэлт үйлчилгээний постер
+            </CardTitle>
+            <CardDescription>Нүүр хуудсанд харагдах зурагт постеруудыг засах</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {posters.map((poster, idx) => (
+              <div key={poster.id} className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm">Постер #{idx + 1}</h4>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs">Идэвхтэй</Label>
+                    <Switch
+                      checked={poster.enabled}
+                      onCheckedChange={(v) => updatePoster(poster.id, 'enabled', v)}
+                    />
+                  </div>
+                </div>
+                {poster.imageUrl && (
+                  <div className="relative aspect-[16/8] rounded-lg overflow-hidden border">
+                    <img src={poster.imageUrl} alt={poster.title} className="absolute inset-0 w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <Label className="text-xs">Зураг</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={poster.imageUrl || ''}
+                      onChange={(e) => updatePoster(poster.id, 'imageUrl', e.target.value)}
+                      placeholder="Зургийн URL"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={uploadingPosterId === poster.id}
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = 'image/*';
+                        input.onchange = (e) => {
+                          const f = (e.target as HTMLInputElement).files?.[0];
+                          if (f) handlePosterUpload(poster.id, f);
+                        };
+                        input.click();
+                      }}
+                    >
+                      {uploadingPosterId === poster.id ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Гарчиг</Label>
+                    <Input
+                      value={poster.title}
+                      onChange={(e) => updatePoster(poster.id, 'title', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Тэмдэг (Badge)</Label>
+                    <Input
+                      value={poster.badge || ''}
+                      onChange={(e) => updatePoster(poster.id, 'badge', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Тайлбар</Label>
+                  <Textarea
+                    value={poster.description}
+                    onChange={(e) => updatePoster(poster.id, 'description', e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
 

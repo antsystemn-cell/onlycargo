@@ -57,6 +57,15 @@ export interface PaymentIconConfig {
   storepay_icon_url?: string;
 }
 
+export interface ServicePoster {
+  id: string;
+  title: string;
+  description: string;
+  badge?: string;
+  imageUrl?: string;
+  enabled: boolean;
+}
+
 interface SiteSettingsContextType {
   logoUrl: string;
   faviconUrl: string;
@@ -68,6 +77,7 @@ interface SiteSettingsContextType {
   tierConfig: TieredPricingConfig;
   paymentIcons: PaymentIconConfig;
   seoSettings: SeoSettingsMap;
+  servicePosters: ServicePoster[];
   isLoading: boolean;
   refresh: () => Promise<void>;
 }
@@ -106,6 +116,23 @@ const defaultKoreaAddresses: KoreaWarehouseAddress[] = [
   },
 ];
 
+const defaultServicePosters: ServicePoster[] = [
+  {
+    id: 'china-transport',
+    title: 'Хятад дотоодын тээвэр',
+    description: 'Хятадын аль ч хотоос барааг тань дотоод тээврээр хүлээн авч Эрээн агуулах хүртэл хүргэнэ.',
+    badge: 'Хятад → Эрээн',
+    enabled: true,
+  },
+  {
+    id: 'mongolia-delivery',
+    title: 'Монгол дахь хүргэлт',
+    description: 'Улаанбаатар болон орон нутгийн аль ч цэгт ачааг тань шууд гар дээр нь хүргэнэ.',
+    badge: 'Хаалга хүртэл',
+    enabled: true,
+  },
+];
+
 const defaultSettings: SiteSettingsContextType = {
   logoUrl: '/placeholder.svg',
   faviconUrl: '/favicon.ico',
@@ -126,6 +153,7 @@ const defaultSettings: SiteSettingsContextType = {
   tierConfig: DEFAULT_TIER_CONFIG,
   paymentIcons: {},
   seoSettings: {},
+  servicePosters: defaultServicePosters,
   isLoading: true,
   refresh: async () => {},
 };
@@ -144,6 +172,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     tierConfig: defaultSettings.tierConfig,
     paymentIcons: defaultSettings.paymentIcons,
     seoSettings: defaultSettings.seoSettings,
+    servicePosters: defaultSettings.servicePosters,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -190,6 +219,12 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
           koreaWarehouseAddresses = rawKoreaAddresses as KoreaWarehouseAddress[];
         }
         
+        const rawPosters = settingsMap.get('service_posters');
+        let servicePosters: ServicePoster[] = defaultServicePosters;
+        if (Array.isArray(rawPosters) && rawPosters.length > 0) {
+          servicePosters = rawPosters as ServicePoster[];
+        }
+
         setSettings({
           logoUrl: (settingsMap.get('logo_url') as string) || defaultSettings.logoUrl,
           faviconUrl: (settingsMap.get('favicon_url') as string) || defaultSettings.faviconUrl,
@@ -201,6 +236,7 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
           tierConfig,
           paymentIcons: (settingsMap.get('payment_icons') as PaymentIconConfig) || defaultSettings.paymentIcons,
           seoSettings: (settingsMap.get('seo_settings') as SeoSettingsMap) || defaultSettings.seoSettings,
+          servicePosters,
         });
       }
     } catch (error) {
