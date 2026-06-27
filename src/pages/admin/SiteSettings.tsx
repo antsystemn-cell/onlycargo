@@ -178,6 +178,30 @@ export default function SiteSettings() {
     );
   };
 
+  const updatePoster = (id: string, field: keyof ServicePoster, value: string | boolean) => {
+    setPosters((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
+  };
+
+  const handlePosterUpload = async (id: string, file: File) => {
+    setUploadingPosterId(id);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `poster-${id}-${Date.now()}.${fileExt}`;
+      const { data, error } = await supabase.storage
+        .from('site-assets')
+        .upload(fileName, file, { upsert: true });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('site-assets').getPublicUrl(data.path);
+      updatePoster(id, 'imageUrl', urlData.publicUrl);
+      toast({ title: 'Зураг хуулагдлаа' });
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Зураг хуулахад алдаа гарлаа', variant: 'destructive' });
+    } finally {
+      setUploadingPosterId(null);
+    }
+  };
+
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
