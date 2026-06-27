@@ -11,6 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import CargoCard from '@/components/cargo/CargoCard';
 import CargoPublicCard from '@/components/cargo/CargoPublicCard';
 import type { Cargo, CargoPublic, CargoStatus } from '@/types/cargo';
+import posterChinaTransport from '@/assets/poster-china-transport.jpg';
+import posterMongoliaDelivery from '@/assets/poster-mongolia-delivery.jpg';
 
 export default function Home() {
   const { user, profile, isAdmin, isLoading } = useAuth();
@@ -280,35 +282,51 @@ export default function Home() {
             })}
           </div>
 
-          {/* Service info cards */}
+          {/* Service posters */}
           <div className="pt-2 space-y-3">
             <h2 className="px-1 text-sm font-semibold text-muted-foreground">Нэмэлт үйлчилгээ</h2>
 
-            <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-rose-50 to-red-50">
-              <div className="flex items-start gap-4 p-5">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 shadow-sm">
-                  <Warehouse className="h-7 w-7" strokeWidth={1.5} />
+            <div className="relative overflow-hidden rounded-2xl border shadow-sm aspect-[16/10]">
+              <img
+                src={posterChinaTransport}
+                alt="Хятад дотоодын тээвэр"
+                loading="lazy"
+                width={1280}
+                height={768}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-medium backdrop-blur-sm">
+                  <Warehouse className="h-3 w-3" />
+                  Хятад → Эрээн
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-foreground">Хятад дотоодын тээвэр</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Хятадын аль ч хотоос барааг тань дотоод тээврээр хүлээн авч, Эрээн хот дахь манай агуулах хүртэл хүргэнэ.
-                  </p>
-                </div>
+                <h3 className="text-lg font-bold leading-tight drop-shadow">Хятад дотоодын тээвэр</h3>
+                <p className="mt-1 text-xs leading-relaxed text-white/90 drop-shadow">
+                  Хятадын аль ч хотоос барааг тань дотоод тээврээр хүлээн авч Эрээн агуулах хүртэл хүргэнэ.
+                </p>
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-emerald-50 to-teal-50">
-              <div className="flex items-start gap-4 p-5">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 shadow-sm">
-                  <Navigation className="h-7 w-7" strokeWidth={1.5} />
+            <div className="relative overflow-hidden rounded-2xl border shadow-sm aspect-[16/10]">
+              <img
+                src={posterMongoliaDelivery}
+                alt="Монгол дахь хүргэлт"
+                loading="lazy"
+                width={1280}
+                height={768}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-medium backdrop-blur-sm">
+                  <Navigation className="h-3 w-3" />
+                  Хаалга хүртэл
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-foreground">Монгол дахь хүргэлт</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Улаанбаатар болон орон нутгийн аль ч цэгт ачааг тань шууд гар дээр нь хүргэж өгнө.
-                  </p>
-                </div>
+                <h3 className="text-lg font-bold leading-tight drop-shadow">Монгол дахь хүргэлт</h3>
+                <p className="mt-1 text-xs leading-relaxed text-white/90 drop-shadow">
+                  Улаанбаатар болон орон нутгийн аль ч цэгт ачааг тань шууд гар дээр нь хүргэнэ.
+                </p>
               </div>
             </div>
           </div>
