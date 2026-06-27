@@ -57,6 +57,15 @@ export interface PaymentIconConfig {
   storepay_icon_url?: string;
 }
 
+export interface ServicePoster {
+  id: string;
+  title: string;
+  description: string;
+  badge?: string;
+  imageUrl?: string;
+  enabled: boolean;
+}
+
 interface SiteSettingsContextType {
   logoUrl: string;
   faviconUrl: string;
@@ -68,6 +77,7 @@ interface SiteSettingsContextType {
   tierConfig: TieredPricingConfig;
   paymentIcons: PaymentIconConfig;
   seoSettings: SeoSettingsMap;
+  servicePosters: ServicePoster[];
   isLoading: boolean;
   refresh: () => Promise<void>;
 }
@@ -106,6 +116,23 @@ const defaultKoreaAddresses: KoreaWarehouseAddress[] = [
   },
 ];
 
+const defaultServicePosters: ServicePoster[] = [
+  {
+    id: 'china-transport',
+    title: 'Хятад дотоодын тээвэр',
+    description: 'Хятадын аль ч хотоос барааг тань дотоод тээврээр хүлээн авч Эрээн агуулах хүртэл хүргэнэ.',
+    badge: 'Хятад → Эрээн',
+    enabled: true,
+  },
+  {
+    id: 'mongolia-delivery',
+    title: 'Монгол дахь хүргэлт',
+    description: 'Улаанбаатар болон орон нутгийн аль ч цэгт ачааг тань шууд гар дээр нь хүргэнэ.',
+    badge: 'Хаалга хүртэл',
+    enabled: true,
+  },
+];
+
 const defaultSettings: SiteSettingsContextType = {
   logoUrl: '/placeholder.svg',
   faviconUrl: '/favicon.ico',
@@ -126,6 +153,7 @@ const defaultSettings: SiteSettingsContextType = {
   tierConfig: DEFAULT_TIER_CONFIG,
   paymentIcons: {},
   seoSettings: {},
+  servicePosters: defaultServicePosters,
   isLoading: true,
   refresh: async () => {},
 };
