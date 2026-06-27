@@ -13,11 +13,11 @@ import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { FaviconSettings } from '@/components/admin/FaviconSettings';
 import { SeoSettings, type SeoSettingsData } from '@/components/admin/SeoSettings';
 import { PaymentIconSettings } from '@/components/admin/PaymentIconSettings';
-import type { PaymentIconConfig, ChinaWarehouseAddress, KoreaWarehouseAddress } from '@/hooks/useSiteSettings';
+import type { PaymentIconConfig, ChinaWarehouseAddress, KoreaWarehouseAddress, ServicePoster } from '@/hooks/useSiteSettings';
 
 export default function SiteSettings() {
   const { toast } = useToast();
-  const { logoUrl, faviconUrl, chinaWarehouseAddresses, koreaWarehouseAddresses, homepageBanner, pricing, paymentIcons, seoSettings, refresh } = useSiteSettings();
+  const { logoUrl, faviconUrl, chinaWarehouseAddresses, koreaWarehouseAddresses, homepageBanner, pricing, paymentIcons, seoSettings, servicePosters, refresh } = useSiteSettings();
   const [isSaving, setIsSaving] = useState(false);
 
   // Logo
@@ -53,6 +53,10 @@ export default function SiteSettings() {
   const [currentSeoSettings, setCurrentSeoSettings] = useState<SeoSettingsData>(seoSettings || {});
   const [currentPaymentIcons, setCurrentPaymentIcons] = useState<PaymentIconConfig>(paymentIcons || {});
 
+  // Service posters
+  const [posters, setPosters] = useState<ServicePoster[]>(servicePosters);
+  const [uploadingPosterId, setUploadingPosterId] = useState<string | null>(null);
+
   useEffect(() => {
     setBannerEnabled(homepageBanner.enabled);
     setBannerTitle(homepageBanner.title);
@@ -70,7 +74,8 @@ export default function SiteSettings() {
     setCurrentFaviconUrl(faviconUrl);
     setCurrentSeoSettings(seoSettings || {});
     setCurrentPaymentIcons(paymentIcons || {});
-  }, [homepageBanner, chinaWarehouseAddresses, koreaWarehouseAddresses, pricing, faviconUrl, seoSettings, paymentIcons]);
+    setPosters(servicePosters);
+  }, [homepageBanner, chinaWarehouseAddresses, koreaWarehouseAddresses, pricing, faviconUrl, seoSettings, paymentIcons, servicePosters]);
 
 
   const handleLogoUpload = async () => {
