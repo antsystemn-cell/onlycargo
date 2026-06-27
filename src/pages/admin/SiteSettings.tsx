@@ -245,6 +245,7 @@ export default function SiteSettings() {
         },
         { key: 'seo_settings', value: JSON.stringify(currentSeoSettings) },
         { key: 'payment_icons', value: JSON.stringify(currentPaymentIcons) },
+        { key: 'service_posters', value: JSON.stringify(posters) },
       ];
 
       for (const update of updates) {
