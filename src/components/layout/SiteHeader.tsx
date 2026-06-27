@@ -2,20 +2,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Package, LogIn, MapPin, Calculator, User, Menu, Home as HomeIcon, Wallet, Settings, LogOut } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
-import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { supabase } from '@/integrations/supabase/client';
+import logoAsset from '@/assets/onlycargo-logo.png.asset.json';
+
+const logoUrl = logoAsset.url;
 
 export default function SiteHeader() {
   const { user, isAdmin } = useAuth();
-  const { logoUrl } = useSiteSettings();
   const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-sm px-4 py-3">
       <div className="relative mx-auto flex max-w-md items-center justify-center">
-        <Link to="/" aria-label="Нүүр хуудас" className="flex items-center gap-2 transition hover:opacity-80">
-          <img src={logoUrl} alt="OnlyCargo" className="h-9 w-9 object-contain" />
-          <h1 className="text-lg font-bold tracking-tight">OnlyCargo</h1>
+        <Link to="/" aria-label="Нүүр хуудас" className="flex items-center transition hover:opacity-80">
+          <img src={logoUrl} alt="OnlyCargo" className="h-10 w-auto object-contain" />
         </Link>
         <div className="absolute left-0 flex items-center">
           <Sheet>
