@@ -156,7 +156,7 @@ export default function Home() {
                 <Package className="h-3.5 w-3.5" />
                 Илгээмж бүртгэх
               </div>
-              <form onSubmit={handleSearch} className="flex gap-2">
+              <form onSubmit={handleRegister} className="flex gap-2">
                 <Input
                   type="text"
                   placeholder="Трак дугаараа оруулна уу..."
@@ -167,10 +167,10 @@ export default function Home() {
                 <Button
                   type="submit"
                   size="icon"
-                  disabled={isSearching || !query.trim()}
+                  disabled={isRegistering || !query.trim()}
                   className="h-11 w-11 bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur-sm"
                 >
-                  {isSearching ? (
+                  {isRegistering ? (
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   ) : (
                     <Plus className="h-5 w-5" />
