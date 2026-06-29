@@ -266,10 +266,13 @@ export type Database = {
       }
       cargo: {
         Row: {
+          auto_status_source: string | null
           branch_id: string | null
+          china_tracking_completed: boolean
           created_at: string
           cubic_meter_price: number | null
           customer_code: string | null
+          ereen_received_detected_at: string | null
           external_ref: string | null
           height: number | null
           id: string
@@ -287,16 +290,29 @@ export type Database = {
           status_date: string
           total_cubic_meters: number | null
           track_number: string
+          tracking_carrier: number | null
+          tracking_last_sync_at: string | null
+          tracking_latest_event_description: string | null
+          tracking_latest_event_location: string | null
+          tracking_latest_event_time: string | null
+          tracking_raw: Json | null
+          tracking_register_error: string | null
+          tracking_registered: boolean
+          tracking_status_17track: string | null
+          tracking_sub_status_17track: string | null
           updated_at: string
           user_id: string | null
           weight: number | null
           width: number | null
         }
         Insert: {
+          auto_status_source?: string | null
           branch_id?: string | null
+          china_tracking_completed?: boolean
           created_at?: string
           cubic_meter_price?: number | null
           customer_code?: string | null
+          ereen_received_detected_at?: string | null
           external_ref?: string | null
           height?: number | null
           id?: string
@@ -314,16 +330,29 @@ export type Database = {
           status_date?: string
           total_cubic_meters?: number | null
           track_number: string
+          tracking_carrier?: number | null
+          tracking_last_sync_at?: string | null
+          tracking_latest_event_description?: string | null
+          tracking_latest_event_location?: string | null
+          tracking_latest_event_time?: string | null
+          tracking_raw?: Json | null
+          tracking_register_error?: string | null
+          tracking_registered?: boolean
+          tracking_status_17track?: string | null
+          tracking_sub_status_17track?: string | null
           updated_at?: string
           user_id?: string | null
           weight?: number | null
           width?: number | null
         }
         Update: {
+          auto_status_source?: string | null
           branch_id?: string | null
+          china_tracking_completed?: boolean
           created_at?: string
           cubic_meter_price?: number | null
           customer_code?: string | null
+          ereen_received_detected_at?: string | null
           external_ref?: string | null
           height?: number | null
           id?: string
@@ -341,6 +370,16 @@ export type Database = {
           status_date?: string
           total_cubic_meters?: number | null
           track_number?: string
+          tracking_carrier?: number | null
+          tracking_last_sync_at?: string | null
+          tracking_latest_event_description?: string | null
+          tracking_latest_event_location?: string | null
+          tracking_latest_event_time?: string | null
+          tracking_raw?: Json | null
+          tracking_register_error?: string | null
+          tracking_registered?: boolean
+          tracking_status_17track?: string | null
+          tracking_sub_status_17track?: string | null
           updated_at?: string
           user_id?: string | null
           weight?: number | null
@@ -416,6 +455,11 @@ export type Database = {
           id: string
           matched_cargo_id: string | null
           track_number: string
+          tracking_carrier: number | null
+          tracking_last_sync_at: string | null
+          tracking_register_error: string | null
+          tracking_registered: boolean
+          tracking_status_17track: string | null
           user_id: string
         }
         Insert: {
@@ -424,6 +468,11 @@ export type Database = {
           id?: string
           matched_cargo_id?: string | null
           track_number: string
+          tracking_carrier?: number | null
+          tracking_last_sync_at?: string | null
+          tracking_register_error?: string | null
+          tracking_registered?: boolean
+          tracking_status_17track?: string | null
           user_id: string
         }
         Update: {
@@ -432,6 +481,11 @@ export type Database = {
           id?: string
           matched_cargo_id?: string | null
           track_number?: string
+          tracking_carrier?: number | null
+          tracking_last_sync_at?: string | null
+          tracking_register_error?: string | null
+          tracking_registered?: boolean
+          tracking_status_17track?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1119,6 +1173,94 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      tracking_events: {
+        Row: {
+          cargo_id: string | null
+          carrier: number | null
+          city: string | null
+          country: string | null
+          created_at: string
+          description: string | null
+          description_translation: string | null
+          event_time: string | null
+          event_time_raw: string | null
+          id: string
+          location: string | null
+          preregistration_id: string | null
+          provider_key: string | null
+          provider_name: string | null
+          raw_event: Json | null
+          stage: string | null
+          state: string | null
+          sub_status: string | null
+          tracking_number: string
+        }
+        Insert: {
+          cargo_id?: string | null
+          carrier?: number | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          description?: string | null
+          description_translation?: string | null
+          event_time?: string | null
+          event_time_raw?: string | null
+          id?: string
+          location?: string | null
+          preregistration_id?: string | null
+          provider_key?: string | null
+          provider_name?: string | null
+          raw_event?: Json | null
+          stage?: string | null
+          state?: string | null
+          sub_status?: string | null
+          tracking_number: string
+        }
+        Update: {
+          cargo_id?: string | null
+          carrier?: number | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          description?: string | null
+          description_translation?: string | null
+          event_time?: string | null
+          event_time_raw?: string | null
+          id?: string
+          location?: string | null
+          preregistration_id?: string | null
+          provider_key?: string | null
+          provider_name?: string | null
+          raw_event?: Json | null
+          stage?: string | null
+          state?: string | null
+          sub_status?: string | null
+          tracking_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracking_events_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_events_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargo_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_events_preregistration_id_fkey"
+            columns: ["preregistration_id"]
+            isOneToOne: false
+            referencedRelation: "cargo_preregistrations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_branches: {
         Row: {

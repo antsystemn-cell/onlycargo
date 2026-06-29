@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import CargoStatusBadge from './CargoStatusBadge';
 import CargoTimeline from './CargoTimeline';
+import ChinaTrackingTimeline from './ChinaTrackingTimeline';
 import type { Cargo, CargoStatusHistory, CargoPhoto } from '@/types/cargo';
 
 interface CargoDetailModalProps {
@@ -164,7 +165,26 @@ export default function CargoDetailModal({ cargo, open, onOpenChange }: CargoDet
                 />
               )}
             </div>
+
+            {/* China 17TRACK timeline */}
+            {cargo.track_number && (
+              <div className="pt-4 border-t">
+                <ChinaTrackingTimeline
+                  trackingNumber={cargo.track_number}
+                  cargoId={cargo.id}
+                  carrier={(cargo as any).tracking_carrier ?? null}
+                  status17={(cargo as any).tracking_status_17track ?? null}
+                  lastSyncAt={(cargo as any).tracking_last_sync_at ?? null}
+                  latestEventDescription={(cargo as any).tracking_latest_event_description ?? null}
+                  latestEventLocation={(cargo as any).tracking_latest_event_location ?? null}
+                  latestEventTime={(cargo as any).tracking_latest_event_time ?? null}
+                  registered={(cargo as any).tracking_registered ?? false}
+                  registerError={(cargo as any).tracking_register_error ?? null}
+                />
+              </div>
+            )}
           </div>
+
         </ScrollArea>
       </DialogContent>
     </Dialog>

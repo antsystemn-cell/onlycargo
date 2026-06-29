@@ -88,11 +88,16 @@ export default function MyCargo() {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('cargo_preregistrations').insert({
-        user_id: user.id,
-        track_number: newTrackNumber.trim(),
-        description: newDescription.trim() || null,
-      });
+      const trackNum = newTrackNumber.trim();
+      const { data: inserted, error } = await supabase
+        .from('cargo_preregistrations')
+        .insert({
+          user_id: user.id,
+          track_number: trackNum,
+          description: newDescription.trim() || null,
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
@@ -100,6 +105,19 @@ export default function MyCargo() {
         title: 'Амжилттай',
         description: 'Ачаа урьдчилан бүртгэгдлээ',
       });
+
+      // Fire-and-forget 17TRACK registration
+      supabase.functions
+        .invoke('register-17track', {
+          body: {
+            preregistration_id: inserted.id,
+            tracking_number: trackNum,
+          },
+        })
+        .then(({ error: fnErr }) => {
+          if (fnErr) console.warn('17TRACK register failed:', fnErr);
+          fetchData();
+        });
 
       setDialogOpen(false);
       setNewTrackNumber('');
@@ -116,6 +134,7 @@ export default function MyCargo() {
       setIsSubmitting(false);
     }
   };
+
 
   const handleDeletePreregistration = async (id: string) => {
     try {
