@@ -26,3 +26,7 @@ verify_jwt = false
 
 [functions.webhook-retry]
 verify_jwt = false
+
+[functions.track17-webhook]
+verify_jwt = false
+
