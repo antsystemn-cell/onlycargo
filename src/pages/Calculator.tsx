@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Calculator as CalcIcon, Scale, Ruler, Info, TrendingDown } from 'lucide-react';
+import { Scale, Ruler, Info, TrendingDown, Box } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
-import { calculateTieredPrice, formatPrice } from '@/lib/priceCalculation';
+import { calculateCargoPrice, formatPrice, formatCubicMeters, type PriceCalculationResult } from '@/lib/priceCalculation';
 import { TierPricingNotice } from '@/components/cargo/TierPricingNotice';
 
 export default function Calculator() {
@@ -14,17 +14,7 @@ export default function Calculator() {
   const [length, setLength] = useState<string>('');
   const [width, setWidth] = useState<string>('');
   const [height, setHeight] = useState<string>('');
-  const [result, setResult] = useState<{
-    actualWeight: number;
-    volumetricWeight: number;
-    chargedWeight: number;
-    price: number;
-    usedMethod: 'weight' | 'volumetric';
-    usedTierPricing: boolean;
-    effectiveRate: number;
-  } | null>(null);
-
-  const PRICE_PER_KG = pricing.per_kg;
+  const [result, setResult] = useState<(PriceCalculationResult & { actualWeight: number }) | null>(null);
 
   const calculate = () => {
     const actualWeight = parseFloat(weight) || 0;
@@ -32,18 +22,17 @@ export default function Calculator() {
     const w = parseFloat(width) || 0;
     const h = parseFloat(height) || 0;
 
-    // Use the tiered calculation function
-    const calcResult = calculateTieredPrice(actualWeight, l, w, h, PRICE_PER_KG, tierConfig);
-
-    setResult({
-      actualWeight,
-      volumetricWeight: calcResult.volumetricWeight,
-      chargedWeight: calcResult.chargedWeight,
-      price: calcResult.price,
-      usedMethod: calcResult.usedMethod,
-      usedTierPricing: calcResult.usedTierPricing,
-      effectiveRate: calcResult.effectiveRate,
+    const calc = calculateCargoPrice({
+      weight: actualWeight,
+      length: l,
+      width: w,
+      height: h,
+      weightRate: pricing.per_kg,
+      volumeRate: pricing.per_cubic_meter,
+      tierConfig,
     });
+
+    setResult({ ...calc, actualWeight });
   };
 
   const reset = () => {
@@ -64,15 +53,13 @@ export default function Calculator() {
 
   return (
     <div className="flex flex-col">
-      {/* Header */}
-
       <main className="flex-1 px-4 py-6">
         <div className="mx-auto max-w-md space-y-6">
           <Card className="overflow-hidden">
             <CardHeader className="bg-gradient-to-br from-primary/10 to-transparent">
-              <CardTitle className="text-base">Жин оруулах</CardTitle>
+              <CardTitle className="text-base">Ачааны мэдээлэл</CardTitle>
               <CardDescription>
-                Бодит жин болон хэмжээсийг оруулна уу
+                Ачааны жин болон хэмжээсийг оруулна уу
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
@@ -98,40 +85,15 @@ export default function Calculator() {
                   Хэмжээс (см)
                 </Label>
                 <div className="grid grid-cols-3 gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Урт"
-                    value={length}
-                    onChange={(e) => setLength(e.target.value)}
-                    step="0.1"
-                    min="0"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Өргөн"
-                    value={width}
-                    onChange={(e) => setWidth(e.target.value)}
-                    step="0.1"
-                    min="0"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Өндөр"
-                    value={height}
-                    onChange={(e) => setHeight(e.target.value)}
-                    step="0.1"
-                    min="0"
-                  />
+                  <Input type="number" placeholder="Урт" value={length} onChange={(e) => setLength(e.target.value)} step="0.1" min="0" />
+                  <Input type="number" placeholder="Өргөн" value={width} onChange={(e) => setWidth(e.target.value)} step="0.1" min="0" />
+                  <Input type="number" placeholder="Өндөр" value={height} onChange={(e) => setHeight(e.target.value)} step="0.1" min="0" />
                 </div>
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={calculate} className="flex-1">
-                  Тооцоолох
-                </Button>
-                <Button variant="outline" onClick={reset}>
-                  Цэвэрлэх
-                </Button>
+                <Button onClick={calculate} className="flex-1">Тооцоолох</Button>
+                <Button variant="outline" onClick={reset}>Цэвэрлэх</Button>
               </div>
             </CardContent>
           </Card>
@@ -140,7 +102,7 @@ export default function Calculator() {
             <Card className="border-primary/50 animate-fade-in overflow-hidden">
               <CardHeader className="pb-2 bg-gradient-to-br from-primary/10 to-transparent">
                 <CardTitle className="text-base flex items-center justify-between">
-                  Үр дүн
+                  Тооцооллын үр дүн
                   {result.usedTierPricing && (
                     <span className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs font-medium">
                       <TrendingDown className="h-3 w-3" />
@@ -150,64 +112,76 @@ export default function Calculator() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 pt-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+                {/* Inputs summary */}
+                <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="rounded-lg bg-muted p-3">
-                    <p className="text-muted-foreground text-xs">Бодит жин</p>
-                    <p className="font-medium text-lg">{result.actualWeight} кг</p>
+                    <p className="text-muted-foreground text-xs flex items-center gap-1">
+                      <Scale className="h-3 w-3" /> Бодит жин
+                    </p>
+                    <p className="font-semibold text-lg">{result.actualWeight} кг</p>
                   </div>
                   <div className="rounded-lg bg-muted p-3">
-                    <p className="text-muted-foreground text-xs">Эзлэхүүний жин</p>
-                    <p className="font-medium text-lg">{result.volumetricWeight} кг</p>
+                    <p className="text-muted-foreground text-xs flex items-center gap-1">
+                      <Box className="h-3 w-3" /> Эзлэхүүн
+                    </p>
+                    <p className="font-semibold text-lg">{formatCubicMeters(result.cubicMeters)}</p>
                   </div>
                 </div>
-                <div className="border-t pt-3">
-                  <div className="flex items-center justify-between">
+
+                {/* Two price calculations */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Үнийн харьцуулалт
+                  </p>
+                  <div className={`flex items-center justify-between rounded-lg border p-3 ${result.usedMethod === 'weight' ? 'border-primary bg-primary/5' : 'border-border'}`}>
                     <div>
-                      <p className="text-muted-foreground text-sm">Төлөх жин</p>
-                      <p className="text-xl font-bold">{result.chargedWeight} кг</p>
+                      <p className="text-sm font-medium">Жингээр</p>
                       <p className="text-xs text-muted-foreground">
-                        ({result.usedMethod === 'volumetric' ? 'Эзлэхүүнээр' : 'Жингээр'} тооцсон)
+                        {result.actualWeight} кг × {formatPrice(result.tierInfo?.effectiveWeightRate ?? pricing.per_kg)}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-muted-foreground text-sm">Төлбөр</p>
-                      <p className="text-3xl font-bold text-primary">
-                        {formatPrice(result.price)}
+                    <p className={`font-semibold ${result.usedMethod === 'weight' ? 'text-primary' : ''}`}>
+                      {formatPrice(result.weightPrice)}
+                    </p>
+                  </div>
+                  <div className={`flex items-center justify-between rounded-lg border p-3 ${result.usedMethod === 'volume' ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                    <div>
+                      <p className="text-sm font-medium">Эзлэхүүнээр</p>
+                      <p className="text-xs text-muted-foreground">
+                        {result.cubicMeters.toFixed(4)} м³ × {formatPrice(result.tierInfo?.effectiveVolumeRate ?? pricing.per_cubic_meter)}
                       </p>
-                      {result.usedTierPricing && (
-                        <p className="text-xs text-primary">
-                          {formatPrice(result.effectiveRate)}/кг
-                        </p>
-                      )}
                     </div>
+                    <p className={`font-semibold ${result.usedMethod === 'volume' ? 'text-primary' : ''}`}>
+                      {formatPrice(result.volumePrice)}
+                    </p>
                   </div>
                 </div>
+
+                {/* Final */}
+                <div className="border-t pt-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-muted-foreground text-sm">Эцсийн төлбөр</p>
+                    <p className="text-xs text-muted-foreground">
+                      {result.usedMethod === 'volume' ? 'Эзлэхүүнээр' : 'Жингээр'} (илүү үнэтэй)
+                    </p>
+                  </div>
+                  <p className="text-3xl font-bold text-primary">{formatPrice(result.finalPrice)}</p>
+                </div>
+
                 <div className="pt-2 border-t space-y-1">
                   <p className="text-xs text-muted-foreground flex items-start gap-1">
                     <Info className="h-3 w-3 mt-0.5 shrink-0" />
-                    Эзлэхүүний жин = (Урт × Өргөн × Өндөр) / 5000
+                    Жингийн үнэ ба эзлэхүүний үнээс <strong className="mx-1">аль ИХ нь</strong> эцсийн үнэ болно
                   </p>
                   <p className="text-xs text-muted-foreground flex items-start gap-1">
                     <Info className="h-3 w-3 mt-0.5 shrink-0" />
-                    <strong>Бодит жин, эзлэхүүний жингээс аль ИХ нь</strong> тооцогдоно
+                    Эзлэхүүн = Урт × Өргөн × Өндөр / 1,000,000 (м³)
                   </p>
-                  {result.usedTierPricing ? (
-                    <p className="text-xs text-primary flex items-start gap-1">
-                      <TrendingDown className="h-3 w-3 mt-0.5 shrink-0" />
-                      Хямдралтай үнэ хэрэглэгдлээ ({formatPrice(result.effectiveRate)}/кг)
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground flex items-start gap-1">
-                      <Info className="h-3 w-3 mt-0.5 shrink-0" />
-                      1 кг = {formatPrice(PRICE_PER_KG)}
-                    </p>
-                  )}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Tier pricing info */}
           <TierPricingNotice variant="compact" />
         </div>
       </main>
