@@ -191,6 +191,7 @@ export default function ChinaTrackingTimeline(props: Props) {
           {events.map((ev, idx) => {
             const isFirst = idx === 0;
             const isLast = idx === events.length - 1;
+            const loc = composeLocation(ev);
             return (
               <div key={ev.id} className="relative flex gap-3">
                 <div className="flex flex-col items-center">
@@ -199,29 +200,39 @@ export default function ChinaTrackingTimeline(props: Props) {
                       isFirst ? 'bg-primary ring-4 ring-primary/20' : 'bg-muted-foreground/40'
                     }`}
                   />
-                  {!isLast && <div className="w-0.5 flex-1 bg-border min-h-[36px]" />}
+                  {!isLast && <div className="w-0.5 flex-1 bg-border min-h-[44px]" />}
                 </div>
-                <div className="pb-3 flex-1 min-w-0">
-                  <p className={`text-sm ${isFirst ? 'font-medium' : ''}`}>
-                    {ev.description || '—'}
-                  </p>
-                  <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mt-0.5">
-                    {ev.event_time && (
-                      <span>{format(new Date(ev.event_time), 'yyyy.MM.dd HH:mm')}</span>
-                    )}
-                    {ev.location && (
-                      <span className="flex items-center gap-0.5">
-                        <MapPin className="h-2.5 w-2.5" /> {ev.location}
-                      </span>
-                    )}
-                    {ev.provider_name && <span>· {ev.provider_name}</span>}
-                  </div>
+                <div className="pb-4 flex-1 min-w-0">
+                  {loc ? (
+                    <p className={`text-sm flex items-center gap-1 ${isFirst ? 'font-semibold' : 'font-medium'}`}>
+                      <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="truncate">{loc}</span>
+                    </p>
+                  ) : (
+                    <p className={`text-sm ${isFirst ? 'font-semibold' : 'font-medium'} text-muted-foreground`}>
+                      Байршил тодорхойгүй
+                    </p>
+                  )}
+                  {ev.event_time && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {format(new Date(ev.event_time), 'yyyy.MM.dd · HH:mm')}
+                    </p>
+                  )}
+                  {ev.description && (
+                    <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                      {ev.description}
+                    </p>
+                  )}
+                  {ev.provider_name && (
+                    <p className="text-[11px] text-muted-foreground/70 mt-0.5">{ev.provider_name}</p>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
     </div>
   );
 }
