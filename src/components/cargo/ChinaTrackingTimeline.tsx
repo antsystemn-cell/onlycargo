@@ -36,16 +36,22 @@ interface Props {
 const STATUS_LABELS: Record<string, { label: string; tone: string }> = {
   tracking_not_found: { label: 'Мэдээлэл олдсонгүй', tone: 'bg-muted text-muted-foreground' },
   china_info_received: { label: 'Тээврийн мэдээлэл үүссэн', tone: 'bg-blue-100 text-blue-700' },
-  china_in_transit: { label: 'Хятад дотор тээвэрлэгдэж байна', tone: 'bg-amber-100 text-amber-700' },
+  china_in_transit: { label: 'Замд явж байна', tone: 'bg-amber-100 text-amber-700' },
   china_tracking_expired: { label: 'Удаан шинэчлэгдээгүй', tone: 'bg-gray-100 text-gray-700' },
   china_tracking_exception: { label: 'Тээврийн асуудал гарсан', tone: 'bg-red-100 text-red-700' },
-  possible_china_delivered: { label: 'Хятад дахь хүргэлт дууссан байж магадгүй', tone: 'bg-emerald-100 text-emerald-700' },
+  possible_china_delivered: { label: 'Хүргэгдсэн байж магадгүй', tone: 'bg-emerald-100 text-emerald-700' },
   possible_ereen_ready_or_pickup: { label: 'Хүлээн авах цэг дээр ирсэн байж магадгүй', tone: 'bg-emerald-100 text-emerald-700' },
   china_out_for_delivery: { label: 'Хүргэлтэнд гарсан', tone: 'bg-cyan-100 text-cyan-700' },
   china_delivery_failure: { label: 'Хүргэлт амжилтгүй', tone: 'bg-red-100 text-red-700' },
   TRACKING_STOPPED: { label: 'Хяналт зогссон', tone: 'bg-gray-200 text-gray-700' },
   Registered: { label: 'Бүртгэгдсэн', tone: 'bg-blue-100 text-blue-700' },
 };
+
+function composeLocation(ev: { location?: string | null; city?: string | null; state?: string | null; country?: string | null }) {
+  if (ev.location) return ev.location;
+  const parts = [ev.city, ev.state, ev.country].filter(Boolean) as string[];
+  return parts.length > 0 ? parts.join(', ') : null;
+}
 
 export default function ChinaTrackingTimeline(props: Props) {
   const {
