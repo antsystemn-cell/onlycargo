@@ -23,6 +23,53 @@ export default function Home() {
   const [publicSearchResults, setPublicSearchResults] = useState<CargoPublic[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  const handleRegister = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const trackNum = query.trim();
+    if (!trackNum) return;
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    setIsRegistering(true);
+    try {
+      // Check if cargo with this track number already exists for the user
+      const { data: existing } = await supabase
+        .from('cargo_preregistrations')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('track_number', trackNum)
+        .maybeSingle();
+
+      if (existing) {
+        navigate('/my-cargo');
+        return;
+      }
+
+      const { data: inserted, error } = await supabase
+        .from('cargo_preregistrations')
+        .insert({ user_id: user.id, track_number: trackNum })
+        .select()
+        .single();
+      if (error) throw error;
+
+      // Fire-and-forget 17TRACK registration
+      supabase.functions
+        .invoke('register-17track', {
+          body: { preregistration_id: inserted.id, tracking_number: trackNum },
+        })
+        .catch((err) => console.warn('17TRACK register failed:', err));
+
+      setQuery('');
+      navigate('/my-cargo');
+    } catch (err) {
+      console.error('Register error:', err);
+    } finally {
+      setIsRegistering(false);
+    }
+  };
 
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -109,7 +156,7 @@ export default function Home() {
                 <Package className="h-3.5 w-3.5" />
                 Илгээмж бүртгэх
               </div>
-              <form onSubmit={handleSearch} className="flex gap-2">
+              <form onSubmit={handleRegister} className="flex gap-2">
                 <Input
                   type="text"
                   placeholder="Трак дугаараа оруулна уу..."
@@ -120,10 +167,10 @@ export default function Home() {
                 <Button
                   type="submit"
                   size="icon"
-                  disabled={isSearching || !query.trim()}
+                  disabled={isRegistering || !query.trim()}
                   className="h-11 w-11 bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur-sm"
                 >
-                  {isSearching ? (
+                  {isRegistering ? (
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   ) : (
                     <Plus className="h-5 w-5" />
