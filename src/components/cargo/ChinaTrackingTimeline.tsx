@@ -143,27 +143,29 @@ export default function ChinaTrackingTimeline(props: Props) {
         </div>
       ) : (
         <div className="rounded-lg border bg-card p-3 space-y-2">
-          {statusInfo && (
-            <Badge className={`${statusInfo.tone} border-0 font-normal`}>{statusInfo.label}</Badge>
-          )}
-          {latestEventDescription ? (
-            <div>
-              <p className="text-xs text-muted-foreground">Сүүлийн шинэчлэлт</p>
-              <p className="text-sm font-medium">{latestEventDescription}</p>
-              {latestEventLocation && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                  <MapPin className="h-3 w-3" /> {latestEventLocation}
-                </p>
-              )}
-              {latestEventTime && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {format(new Date(latestEventTime), 'yyyy.MM.dd HH:mm')}
-                </p>
-              )}
+          {latestEventLocation ? (
+            <div className="flex items-start gap-2">
+              <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Одоогийн байршил</p>
+                <p className="text-sm font-semibold">{latestEventLocation}</p>
+                {latestEventTime && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {format(new Date(latestEventTime), 'yyyy.MM.dd HH:mm')}
+                  </p>
+                )}
+              </div>
             </div>
+          ) : statusInfo ? (
+            <Badge className={`${statusInfo.tone} border-0 font-normal`}>{statusInfo.label}</Badge>
           ) : (
             <p className="text-sm text-muted-foreground">
               Одоогоор tracking мэдээлэл хараахан ирээгүй байна.
+            </p>
+          )}
+          {latestEventDescription && (
+            <p className="text-xs text-muted-foreground border-t pt-2">
+              {latestEventDescription}
             </p>
           )}
           {lastSyncAt && (
@@ -173,6 +175,7 @@ export default function ChinaTrackingTimeline(props: Props) {
           )}
         </div>
       )}
+
 
       {/* Timeline */}
       {loading ? (
