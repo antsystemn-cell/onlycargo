@@ -36,16 +36,22 @@ interface Props {
 const STATUS_LABELS: Record<string, { label: string; tone: string }> = {
   tracking_not_found: { label: 'Мэдээлэл олдсонгүй', tone: 'bg-muted text-muted-foreground' },
   china_info_received: { label: 'Тээврийн мэдээлэл үүссэн', tone: 'bg-blue-100 text-blue-700' },
-  china_in_transit: { label: 'Хятад дотор тээвэрлэгдэж байна', tone: 'bg-amber-100 text-amber-700' },
+  china_in_transit: { label: 'Замд явж байна', tone: 'bg-amber-100 text-amber-700' },
   china_tracking_expired: { label: 'Удаан шинэчлэгдээгүй', tone: 'bg-gray-100 text-gray-700' },
   china_tracking_exception: { label: 'Тээврийн асуудал гарсан', tone: 'bg-red-100 text-red-700' },
-  possible_china_delivered: { label: 'Хятад дахь хүргэлт дууссан байж магадгүй', tone: 'bg-emerald-100 text-emerald-700' },
+  possible_china_delivered: { label: 'Хүргэгдсэн байж магадгүй', tone: 'bg-emerald-100 text-emerald-700' },
   possible_ereen_ready_or_pickup: { label: 'Хүлээн авах цэг дээр ирсэн байж магадгүй', tone: 'bg-emerald-100 text-emerald-700' },
   china_out_for_delivery: { label: 'Хүргэлтэнд гарсан', tone: 'bg-cyan-100 text-cyan-700' },
   china_delivery_failure: { label: 'Хүргэлт амжилтгүй', tone: 'bg-red-100 text-red-700' },
   TRACKING_STOPPED: { label: 'Хяналт зогссон', tone: 'bg-gray-200 text-gray-700' },
   Registered: { label: 'Бүртгэгдсэн', tone: 'bg-blue-100 text-blue-700' },
 };
+
+function composeLocation(ev: { location?: string | null; city?: string | null; state?: string | null; country?: string | null }) {
+  if (ev.location) return ev.location;
+  const parts = [ev.city, ev.state, ev.country].filter(Boolean) as string[];
+  return parts.length > 0 ? parts.join(', ') : null;
+}
 
 export default function ChinaTrackingTimeline(props: Props) {
   const {
@@ -137,27 +143,29 @@ export default function ChinaTrackingTimeline(props: Props) {
         </div>
       ) : (
         <div className="rounded-lg border bg-card p-3 space-y-2">
-          {statusInfo && (
-            <Badge className={`${statusInfo.tone} border-0 font-normal`}>{statusInfo.label}</Badge>
-          )}
-          {latestEventDescription ? (
-            <div>
-              <p className="text-xs text-muted-foreground">Сүүлийн шинэчлэлт</p>
-              <p className="text-sm font-medium">{latestEventDescription}</p>
-              {latestEventLocation && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                  <MapPin className="h-3 w-3" /> {latestEventLocation}
-                </p>
-              )}
-              {latestEventTime && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {format(new Date(latestEventTime), 'yyyy.MM.dd HH:mm')}
-                </p>
-              )}
+          {latestEventLocation ? (
+            <div className="flex items-start gap-2">
+              <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Одоогийн байршил</p>
+                <p className="text-sm font-semibold">{latestEventLocation}</p>
+                {latestEventTime && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {format(new Date(latestEventTime), 'yyyy.MM.dd HH:mm')}
+                  </p>
+                )}
+              </div>
             </div>
+          ) : statusInfo ? (
+            <Badge className={`${statusInfo.tone} border-0 font-normal`}>{statusInfo.label}</Badge>
           ) : (
             <p className="text-sm text-muted-foreground">
               Одоогоор tracking мэдээлэл хараахан ирээгүй байна.
+            </p>
+          )}
+          {latestEventDescription && (
+            <p className="text-xs text-muted-foreground border-t pt-2">
+              {latestEventDescription}
             </p>
           )}
           {lastSyncAt && (
@@ -167,6 +175,7 @@ export default function ChinaTrackingTimeline(props: Props) {
           )}
         </div>
       )}
+
 
       {/* Timeline */}
       {loading ? (
@@ -182,6 +191,7 @@ export default function ChinaTrackingTimeline(props: Props) {
           {events.map((ev, idx) => {
             const isFirst = idx === 0;
             const isLast = idx === events.length - 1;
+            const loc = composeLocation(ev);
             return (
               <div key={ev.id} className="relative flex gap-3">
                 <div className="flex flex-col items-center">
@@ -190,29 +200,39 @@ export default function ChinaTrackingTimeline(props: Props) {
                       isFirst ? 'bg-primary ring-4 ring-primary/20' : 'bg-muted-foreground/40'
                     }`}
                   />
-                  {!isLast && <div className="w-0.5 flex-1 bg-border min-h-[36px]" />}
+                  {!isLast && <div className="w-0.5 flex-1 bg-border min-h-[44px]" />}
                 </div>
-                <div className="pb-3 flex-1 min-w-0">
-                  <p className={`text-sm ${isFirst ? 'font-medium' : ''}`}>
-                    {ev.description || '—'}
-                  </p>
-                  <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mt-0.5">
-                    {ev.event_time && (
-                      <span>{format(new Date(ev.event_time), 'yyyy.MM.dd HH:mm')}</span>
-                    )}
-                    {ev.location && (
-                      <span className="flex items-center gap-0.5">
-                        <MapPin className="h-2.5 w-2.5" /> {ev.location}
-                      </span>
-                    )}
-                    {ev.provider_name && <span>· {ev.provider_name}</span>}
-                  </div>
+                <div className="pb-4 flex-1 min-w-0">
+                  {loc ? (
+                    <p className={`text-sm flex items-center gap-1 ${isFirst ? 'font-semibold' : 'font-medium'}`}>
+                      <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="truncate">{loc}</span>
+                    </p>
+                  ) : (
+                    <p className={`text-sm ${isFirst ? 'font-semibold' : 'font-medium'} text-muted-foreground`}>
+                      Байршил тодорхойгүй
+                    </p>
+                  )}
+                  {ev.event_time && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {format(new Date(ev.event_time), 'yyyy.MM.dd · HH:mm')}
+                    </p>
+                  )}
+                  {ev.description && (
+                    <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                      {ev.description}
+                    </p>
+                  )}
+                  {ev.provider_name && (
+                    <p className="text-[11px] text-muted-foreground/70 mt-0.5">{ev.provider_name}</p>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
     </div>
   );
 }
