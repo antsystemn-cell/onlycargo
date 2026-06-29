@@ -23,6 +23,53 @@ export default function Home() {
   const [publicSearchResults, setPublicSearchResults] = useState<CargoPublic[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  const handleRegister = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const trackNum = query.trim();
+    if (!trackNum) return;
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    setIsRegistering(true);
+    try {
+      // Check if cargo with this track number already exists for the user
+      const { data: existing } = await supabase
+        .from('cargo_preregistrations')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('track_number', trackNum)
+        .maybeSingle();
+
+      if (existing) {
+        navigate('/my-cargo');
+        return;
+      }
+
+      const { data: inserted, error } = await supabase
+        .from('cargo_preregistrations')
+        .insert({ user_id: user.id, track_number: trackNum })
+        .select()
+        .single();
+      if (error) throw error;
+
+      // Fire-and-forget 17TRACK registration
+      supabase.functions
+        .invoke('register-17track', {
+          body: { preregistration_id: inserted.id, tracking_number: trackNum },
+        })
+        .catch((err) => console.warn('17TRACK register failed:', err));
+
+      setQuery('');
+      navigate('/my-cargo');
+    } catch (err) {
+      console.error('Register error:', err);
+    } finally {
+      setIsRegistering(false);
+    }
+  };
 
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
