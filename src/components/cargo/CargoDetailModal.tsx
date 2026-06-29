@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import CargoStatusBadge from './CargoStatusBadge';
 import CargoTimeline from './CargoTimeline';
+import ChinaTrackingTimeline from './ChinaTrackingTimeline';
 import type { Cargo, CargoStatusHistory, CargoPhoto } from '@/types/cargo';
 
 interface CargoDetailModalProps {
