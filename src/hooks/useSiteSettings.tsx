@@ -11,6 +11,7 @@ export interface ChinaWarehouseAddress {
   region: string;
   address: string;
   prefix: string;
+  enabled?: boolean;
 }
 
 export type KoreaWarehouseAddress = ChinaWarehouseAddress;

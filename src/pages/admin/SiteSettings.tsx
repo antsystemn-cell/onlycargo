@@ -138,6 +138,7 @@ export default function SiteSettings() {
         region: '',
         address: '',
         prefix: 'ONLY',
+        enabled: true,
       },
     ]);
   };
@@ -146,7 +147,7 @@ export default function SiteSettings() {
     setChinaAddresses(prev => prev.filter(a => a.id !== id));
   };
 
-  const updateChinaAddress = (id: string, field: keyof ChinaWarehouseAddress, value: string) => {
+  const updateChinaAddress = (id: string, field: keyof ChinaWarehouseAddress, value: string | boolean) => {
     setChinaAddresses(prev =>
       prev.map(a => (a.id === id ? { ...a, [field]: value } : a))
     );
@@ -164,6 +165,7 @@ export default function SiteSettings() {
         region: '',
         address: '',
         prefix: 'ONLY',
+        enabled: true,
       },
     ]);
   };
@@ -172,7 +174,7 @@ export default function SiteSettings() {
     setKoreaAddresses(prev => prev.filter(a => a.id !== id));
   };
 
-  const updateKoreaAddress = (id: string, field: keyof KoreaWarehouseAddress, value: string) => {
+  const updateKoreaAddress = (id: string, field: keyof KoreaWarehouseAddress, value: string | boolean) => {
     setKoreaAddresses(prev =>
       prev.map(a => (a.id === id ? { ...a, [field]: value } : a))
     );
@@ -397,20 +399,32 @@ export default function SiteSettings() {
           </CardHeader>
           <CardContent className="space-y-4">
             {chinaAddresses.map((addr, idx) => (
-              <div key={addr.id} className="rounded-lg border bg-muted/30 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-sm">Хаяг #{idx + 1}</h4>
-                  {chinaAddresses.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => removeChinaAddress(addr.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Устгах
-                    </Button>
-                  )}
+              <div key={addr.id} className={`rounded-lg border p-4 space-y-3 ${addr.enabled === false ? 'bg-muted/10 opacity-60' : 'bg-muted/30'}`}>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h4 className="font-medium text-sm">
+                    Хаяг #{idx + 1}
+                    {addr.enabled === false && <span className="ml-2 text-xs text-muted-foreground">(Идэвхгүй)</span>}
+                  </h4>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs">Идэвхтэй</Label>
+                      <Switch
+                        checked={addr.enabled !== false}
+                        onCheckedChange={(checked) => updateChinaAddress(addr.id, 'enabled', checked as any)}
+                      />
+                    </div>
+                    {chinaAddresses.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => removeChinaAddress(addr.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Устгах
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1">
@@ -484,20 +498,32 @@ export default function SiteSettings() {
           </CardHeader>
           <CardContent className="space-y-4">
             {koreaAddresses.map((addr, idx) => (
-              <div key={addr.id} className="rounded-lg border bg-muted/30 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-sm">Хаяг #{idx + 1}</h4>
-                  {koreaAddresses.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => removeKoreaAddress(addr.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Устгах
-                    </Button>
-                  )}
+              <div key={addr.id} className={`rounded-lg border p-4 space-y-3 ${addr.enabled === false ? 'bg-muted/10 opacity-60' : 'bg-muted/30'}`}>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <h4 className="font-medium text-sm">
+                    Хаяг #{idx + 1}
+                    {addr.enabled === false && <span className="ml-2 text-xs text-muted-foreground">(Идэвхгүй)</span>}
+                  </h4>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs">Идэвхтэй</Label>
+                      <Switch
+                        checked={addr.enabled !== false}
+                        onCheckedChange={(checked) => updateKoreaAddress(addr.id, 'enabled', checked as any)}
+                      />
+                    </div>
+                    {koreaAddresses.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => removeKoreaAddress(addr.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Устгах
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1">
