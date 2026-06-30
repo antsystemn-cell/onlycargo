@@ -146,7 +146,7 @@ export default function SiteSettings() {
     setChinaAddresses(prev => prev.filter(a => a.id !== id));
   };
 
-  const updateChinaAddress = (id: string, field: keyof ChinaWarehouseAddress, value: string) => {
+  const updateChinaAddress = (id: string, field: keyof ChinaWarehouseAddress, value: string | boolean) => {
     setChinaAddresses(prev =>
       prev.map(a => (a.id === id ? { ...a, [field]: value } : a))
     );
