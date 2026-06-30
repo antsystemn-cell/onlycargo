@@ -15,7 +15,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ChinaAddress() {
-  const { chinaWarehouseAddresses, isLoading: settingsLoading } = useSiteSettings();
+  const { chinaWarehouseAddresses: allChinaAddresses, isLoading: settingsLoading } = useSiteSettings();
+  const chinaWarehouseAddresses = allChinaAddresses.filter((a) => a.enabled !== false);
   const { profile, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
