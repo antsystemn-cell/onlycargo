@@ -173,6 +173,29 @@ export default function ChinaAddress() {
               </ol>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Хаяг холбох видео заавар</CardTitle>
+              <CardDescription>Видеог үзэж хаягаа хэрхэн зөв холбохыг сурна уу</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mx-auto w-full max-w-[260px] sm:max-w-[300px]">
+                <div className="relative w-full overflow-hidden rounded-lg bg-black" style={{ aspectRatio: '221 / 476' }}>
+                  <iframe
+                    src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Freel%2F1815402566091460%2F&show_text=false&t=0"
+                    className="absolute inset-0 h-full w-full border-0"
+                    style={{ overflow: 'hidden' }}
+                    scrolling="no"
+                    frameBorder={0}
+                    allowFullScreen
+                    allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                    title="Хаяг холбох видео заавар"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
