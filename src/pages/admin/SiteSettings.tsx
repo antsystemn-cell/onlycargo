@@ -138,6 +138,7 @@ export default function SiteSettings() {
         region: '',
         address: '',
         prefix: 'ONLY',
+        enabled: true,
       },
     ]);
   };
