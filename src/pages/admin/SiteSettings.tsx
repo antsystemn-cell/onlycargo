@@ -172,7 +172,7 @@ export default function SiteSettings() {
     setKoreaAddresses(prev => prev.filter(a => a.id !== id));
   };
 
-  const updateKoreaAddress = (id: string, field: keyof KoreaWarehouseAddress, value: string) => {
+  const updateKoreaAddress = (id: string, field: keyof KoreaWarehouseAddress, value: string | boolean) => {
     setKoreaAddresses(prev =>
       prev.map(a => (a.id === id ? { ...a, [field]: value } : a))
     );
