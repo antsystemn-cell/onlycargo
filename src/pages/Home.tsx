@@ -141,6 +141,14 @@ export default function Home() {
       iconWrap: 'bg-rose-100 text-rose-700',
     },
     {
+      title: 'Хятад дотоод тээвэр',
+      description: 'Хятад дахь хот хооронд бараа тээвэрлэх',
+      to: user ? '/china-domestic-transport' : '/auth',
+      icon: Warehouse,
+      bg: 'from-orange-50 to-amber-50',
+      iconWrap: 'bg-orange-100 text-orange-700',
+    },
+    {
       title: 'Бараа судлуулах',
       description: 'БНХАУ-аас бараа судлах үйлчилгээ',
       to: user ? '/product-research' : '/auth',
@@ -148,6 +156,7 @@ export default function Home() {
       bg: 'from-emerald-50 to-teal-50',
       iconWrap: 'bg-emerald-100 text-emerald-700',
     },
+
     {
       title: 'Гаалийн зөвлөгөө',
       description: 'Гаалийн бүрдүүлэлт, татварын зөвлөгөө',
