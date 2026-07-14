@@ -18,6 +18,7 @@ import {
   Truck,
   Key,
   ArrowRightLeft,
+  PackageSearch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ const adminNavItems = [
   { href: '/admin/banners', icon: Image, label: 'Баннерүүд' },
   { href: '/admin/referral-settings', icon: Gift, label: 'Урилгын тохиргоо' },
   { href: '/admin/remittance', icon: ArrowRightLeft, label: 'Юанийн гуйвуулга' },
+  { href: '/admin/product-research', icon: PackageSearch, label: 'Барааны судалгаа' },
   { href: '/admin/integrations', icon: Key, label: 'API Интеграци' },
   { href: '/admin/settings', icon: Settings, label: 'Тохиргоо' },
 ];
