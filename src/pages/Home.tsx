@@ -235,7 +235,7 @@ export default function Home() {
             </section>
           )}
 
-          {/* Feature cards */}
+          {/* Services: feature cards + posters */}
           <div className="space-y-3 pt-1">
             {features.map((f) => {
               const Icon = f.icon;
@@ -255,41 +255,36 @@ export default function Home() {
                 </Link>
               );
             })}
+
+            {servicePosters.filter((p) => p.enabled).map((poster, idx) => {
+              const fallback = idx === 0 ? posterChinaTransport : posterMongoliaDelivery;
+              const Icon = idx === 0 ? Warehouse : Navigation;
+              return (
+                <div key={poster.id} className="relative overflow-hidden rounded-2xl border shadow-sm aspect-[16/8]">
+                  <img
+                    src={poster.imageUrl || fallback}
+                    alt={poster.title}
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 p-3">
+                    {poster.badge && (
+                      <div className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                        <Icon className="h-3 w-3" />
+                        {poster.badge}
+                      </div>
+                    )}
+                    <h3 className="text-sm font-bold leading-tight text-white drop-shadow">{poster.title}</h3>
+                    <p className="mt-0.5 text-[11px] leading-snug text-white/90 drop-shadow line-clamp-2">
+                      {poster.description}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Service posters */}
-          {servicePosters.some((p) => p.enabled) && (
-            <div className="pt-2 space-y-3">
-              <h2 className="px-1 text-sm font-semibold text-muted-foreground">Нэмэлт үйлчилгээ</h2>
-              {servicePosters.filter((p) => p.enabled).map((poster, idx) => {
-                const fallback = idx === 0 ? posterChinaTransport : posterMongoliaDelivery;
-                const Icon = idx === 0 ? Warehouse : Navigation;
-                return (
-                  <div key={poster.id} className="relative overflow-hidden rounded-2xl border shadow-sm aspect-[16/8]">
-                    <img
-                      src={poster.imageUrl || fallback}
-                      alt={poster.title}
-                      loading="lazy"
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                    <div className="absolute inset-x-0 bottom-0 p-3">
-                      {poster.badge && (
-                        <div className="mb-1.5 inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
-                          <Icon className="h-3 w-3" />
-                          {poster.badge}
-                        </div>
-                      )}
-                      <h3 className="text-sm font-bold leading-tight text-white drop-shadow">{poster.title}</h3>
-                      <p className="mt-0.5 text-[11px] leading-snug text-white/90 drop-shadow line-clamp-2">
-                        {poster.description}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       </main>
     </div>
