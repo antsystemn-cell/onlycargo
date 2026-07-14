@@ -48,6 +48,8 @@ import RemittanceManagement from "@/pages/admin/RemittanceManagement";
 import ProductResearchManagement from "@/pages/admin/ProductResearchManagement";
 import CustomsConsultationManagement from "@/pages/admin/CustomsConsultationManagement";
 import ChinaDomesticTransportManagement from "@/pages/admin/ChinaDomesticTransportManagement";
+import MongoliaDeliveryManagement from "@/pages/admin/MongoliaDeliveryManagement";
+
 
 
 // China Warehouse Pages
