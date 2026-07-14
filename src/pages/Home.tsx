@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Package, LogIn, Search as SearchIcon, Plus, Truck, MapPin, Calculator, User, Menu, Home as HomeIcon, Wallet, Settings, LogOut, Phone, Warehouse, Navigation } from 'lucide-react';
+import { Package, LogIn, Search as SearchIcon, Plus, Truck, MapPin, Calculator, User, Menu, Home as HomeIcon, Wallet, Settings, LogOut, Phone, Warehouse, Navigation, ArrowRightLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -131,6 +131,14 @@ export default function Home() {
       icon: MapPin,
       bg: 'from-sky-50 to-blue-50',
       iconWrap: 'bg-sky-100 text-sky-700',
+    },
+    {
+      title: 'Юань гуйвуулах',
+      description: 'Alipay / WeChat руу CNY илгээх',
+      to: user ? '/remittance' : '/auth',
+      icon: ArrowRightLeft,
+      bg: 'from-rose-50 to-pink-50',
+      iconWrap: 'bg-rose-100 text-rose-700',
     },
     {
       title: 'Тооцоолуур',

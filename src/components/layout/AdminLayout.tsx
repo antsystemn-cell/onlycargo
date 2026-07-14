@@ -17,6 +17,7 @@ import {
   Gift,
   Truck,
   Key,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ const adminNavItems = [
   { href: '/admin/delivery-orders', icon: Truck, label: 'Хүргэлтийн захиалга' },
   { href: '/admin/banners', icon: Image, label: 'Баннерүүд' },
   { href: '/admin/referral-settings', icon: Gift, label: 'Урилгын тохиргоо' },
+  { href: '/admin/remittance', icon: ArrowRightLeft, label: 'Юанийн гуйвуулга' },
   { href: '/admin/integrations', icon: Key, label: 'API Интеграци' },
   { href: '/admin/settings', icon: Settings, label: 'Тохиргоо' },
 ];
