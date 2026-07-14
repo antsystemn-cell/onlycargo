@@ -141,6 +141,14 @@ export default function Home() {
       iconWrap: 'bg-rose-100 text-rose-700',
     },
     {
+      title: 'Бараа судлуулах',
+      description: 'БНХАУ-аас бараа судлах үйлчилгээ',
+      to: user ? '/product-research' : '/auth',
+      icon: PackageSearch,
+      bg: 'from-emerald-50 to-teal-50',
+      iconWrap: 'bg-emerald-100 text-emerald-700',
+    },
+    {
       title: 'Тооцоолуур',
       description: 'Илгээмжийн үнийн дүн тооцоолох',
       to: '/calculator',
