@@ -70,6 +70,7 @@ const App = () => (
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/referral" element={<ReferralPage />} />
               <Route path="/remittance" element={<Remittance />} />
+              <Route path="/product-research" element={<ProductResearch />} />
             </Route>
 
             {/* Admin Routes with Sidebar */}
