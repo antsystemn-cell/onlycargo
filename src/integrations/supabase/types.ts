@@ -968,6 +968,51 @@ export type Database = {
           },
         ]
       }
+      product_research_orders: {
+        Row: {
+          admin_notes: string | null
+          admin_quoted_price: number | null
+          admin_response: string | null
+          created_at: string
+          fee: number
+          id: string
+          notes: string | null
+          product_url: string
+          status: Database["public"]["Enums"]["product_research_status"]
+          updated_at: string
+          user_id: string
+          wallet_transaction_id: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          admin_quoted_price?: number | null
+          admin_response?: string | null
+          created_at?: string
+          fee?: number
+          id?: string
+          notes?: string | null
+          product_url: string
+          status?: Database["public"]["Enums"]["product_research_status"]
+          updated_at?: string
+          user_id: string
+          wallet_transaction_id?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          admin_quoted_price?: number | null
+          admin_response?: string | null
+          created_at?: string
+          fee?: number
+          id?: string
+          notes?: string | null
+          product_url?: string
+          status?: Database["public"]["Enums"]["product_research_status"]
+          updated_at?: string
+          user_id?: string
+          wallet_transaction_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1654,6 +1699,12 @@ export type Database = {
         | "completed"
       payment_method: "qpay" | "cash" | "bank_transfer" | "manual" | "storepay"
       payment_status: "pending" | "paid" | "failed" | "cancelled" | "refunded"
+      product_research_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "rejected"
+        | "cancelled"
       remittance_receiver_type: "alipay" | "wechat"
       remittance_status:
         | "pending"
@@ -1799,6 +1850,13 @@ export const Constants = {
       ],
       payment_method: ["qpay", "cash", "bank_transfer", "manual", "storepay"],
       payment_status: ["pending", "paid", "failed", "cancelled", "refunded"],
+      product_research_status: [
+        "pending",
+        "processing",
+        "completed",
+        "rejected",
+        "cancelled",
+      ],
       remittance_receiver_type: ["alipay", "wechat"],
       remittance_status: [
         "pending",
