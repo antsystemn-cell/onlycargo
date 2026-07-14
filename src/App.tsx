@@ -78,6 +78,8 @@ const App = () => (
               <Route path="/remittance" element={<Remittance />} />
               <Route path="/product-research" element={<ProductResearch />} />
               <Route path="/customs-consultation" element={<CustomsConsultation />} />
+              <Route path="/china-domestic-transport" element={<ChinaDomesticTransport />} />
+
             </Route>
 
             {/* Admin Routes with Sidebar */}
