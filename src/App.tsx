@@ -22,6 +22,7 @@ import ReferralPage from "@/pages/Referral";
 import Auth from "@/pages/Auth";
 import Remittance from "@/pages/Remittance";
 import ProductResearch from "@/pages/ProductResearch";
+import CustomsConsultation from "@/pages/CustomsConsultation";
 import NotFound from "@/pages/NotFound";
 
 // Admin Pages
@@ -41,6 +42,7 @@ import ReferralSettings from "@/pages/admin/ReferralSettings";
 import ApiKeyManagement from "@/pages/admin/ApiKeyManagement";
 import RemittanceManagement from "@/pages/admin/RemittanceManagement";
 import ProductResearchManagement from "@/pages/admin/ProductResearchManagement";
+import CustomsConsultationManagement from "@/pages/admin/CustomsConsultationManagement";
 
 // China Warehouse Pages
 import ChinaWarehouseRegister from "@/pages/china-warehouse/ChinaWarehouseRegister";
@@ -71,6 +73,7 @@ const App = () => (
               <Route path="/referral" element={<ReferralPage />} />
               <Route path="/remittance" element={<Remittance />} />
               <Route path="/product-research" element={<ProductResearch />} />
+              <Route path="/customs-consultation" element={<CustomsConsultation />} />
             </Route>
 
             {/* Admin Routes with Sidebar */}
@@ -91,6 +94,7 @@ const App = () => (
               <Route path="integrations" element={<ApiKeyManagement />} />
               <Route path="remittance" element={<RemittanceManagement />} />
               <Route path="product-research" element={<ProductResearchManagement />} />
+              <Route path="customs-consultation" element={<CustomsConsultationManagement />} />
             </Route>
 
             {/* China Warehouse Routes */}

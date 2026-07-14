@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Package, LogIn, Search as SearchIcon, Plus, Truck, MapPin, Calculator, User, Menu, Home as HomeIcon, Wallet, Settings, LogOut, Phone, Warehouse, Navigation, ArrowRightLeft, PackageSearch } from 'lucide-react';
+import { Package, LogIn, Search as SearchIcon, Plus, Truck, MapPin, Calculator, User, Menu, Home as HomeIcon, Wallet, Settings, LogOut, Phone, Warehouse, Navigation, ArrowRightLeft, PackageSearch, FileCheck2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -147,6 +147,14 @@ export default function Home() {
       icon: PackageSearch,
       bg: 'from-emerald-50 to-teal-50',
       iconWrap: 'bg-emerald-100 text-emerald-700',
+    },
+    {
+      title: 'Гаалийн зөвлөгөө',
+      description: 'Гаалийн бүрдүүлэлт, татварын зөвлөгөө',
+      to: user ? '/customs-consultation' : '/auth',
+      icon: FileCheck2,
+      bg: 'from-indigo-50 to-violet-50',
+      iconWrap: 'bg-indigo-100 text-indigo-700',
     },
     {
       title: 'Тооцоолуур',
