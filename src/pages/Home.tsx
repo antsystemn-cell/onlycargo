@@ -149,6 +149,15 @@ export default function Home() {
       iconWrap: 'bg-orange-100 text-orange-700',
     },
     {
+      title: 'Монгол хүргэлт',
+      description: 'Монгол дотор хот хоорондын хүргэлт',
+      to: user ? '/mongolia-delivery' : '/auth',
+      icon: Navigation,
+      bg: 'from-cyan-50 to-sky-50',
+      iconWrap: 'bg-cyan-100 text-cyan-700',
+    },
+
+    {
       title: 'Бараа судлуулах',
       description: 'БНХАУ-аас бараа судлах үйлчилгээ',
       to: user ? '/product-research' : '/auth',
