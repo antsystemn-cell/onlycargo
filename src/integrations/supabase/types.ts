@@ -624,6 +624,63 @@ export type Database = {
         }
         Relationships: []
       }
+      customs_consultation_orders: {
+        Row: {
+          admin_notes: string | null
+          admin_quoted_cost: number | null
+          admin_response: string | null
+          attachments: Json
+          contact_phone: string | null
+          created_at: string
+          fee: number
+          id: string
+          notes: string | null
+          product_description: string
+          product_value: number | null
+          quantity: number | null
+          status: Database["public"]["Enums"]["customs_consultation_status"]
+          updated_at: string
+          user_id: string
+          wallet_transaction_id: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          admin_quoted_cost?: number | null
+          admin_response?: string | null
+          attachments?: Json
+          contact_phone?: string | null
+          created_at?: string
+          fee?: number
+          id?: string
+          notes?: string | null
+          product_description: string
+          product_value?: number | null
+          quantity?: number | null
+          status?: Database["public"]["Enums"]["customs_consultation_status"]
+          updated_at?: string
+          user_id: string
+          wallet_transaction_id?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          admin_quoted_cost?: number | null
+          admin_response?: string | null
+          attachments?: Json
+          contact_phone?: string | null
+          created_at?: string
+          fee?: number
+          id?: string
+          notes?: string | null
+          product_description?: string
+          product_value?: number | null
+          quantity?: number | null
+          status?: Database["public"]["Enums"]["customs_consultation_status"]
+          updated_at?: string
+          user_id?: string
+          wallet_transaction_id?: string | null
+        }
+        Relationships: []
+      }
       delivery_addresses: {
         Row: {
           address_line: string
@@ -1677,6 +1734,18 @@ export type Database = {
           weight_price: number
         }[]
       }
+      create_customs_consultation_order: {
+        Args: {
+          p_attachments: Json
+          p_contact_phone: string
+          p_fee: number
+          p_notes: string
+          p_product_description: string
+          p_product_value: number
+          p_quantity: number
+        }
+        Returns: string
+      }
       create_product_research_order: {
         Args: { p_fee: number; p_notes: string; p_product_url: string }
         Returns: string
@@ -1701,6 +1770,12 @@ export type Database = {
         | "warehouse_processing"
         | "ready_warehouse"
         | "completed"
+      customs_consultation_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "rejected"
+        | "cancelled"
       payment_method: "qpay" | "cash" | "bank_transfer" | "manual" | "storepay"
       payment_status: "pending" | "paid" | "failed" | "cancelled" | "refunded"
       product_research_status:
@@ -1851,6 +1926,13 @@ export const Constants = {
         "warehouse_processing",
         "ready_warehouse",
         "completed",
+      ],
+      customs_consultation_status: [
+        "pending",
+        "processing",
+        "completed",
+        "rejected",
+        "cancelled",
       ],
       payment_method: ["qpay", "cash", "bank_transfer", "manual", "storepay"],
       payment_status: ["pending", "paid", "failed", "cancelled", "refunded"],
