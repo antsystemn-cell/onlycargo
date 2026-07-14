@@ -42,6 +42,7 @@ import ReferralSettings from "@/pages/admin/ReferralSettings";
 import ApiKeyManagement from "@/pages/admin/ApiKeyManagement";
 import RemittanceManagement from "@/pages/admin/RemittanceManagement";
 import ProductResearchManagement from "@/pages/admin/ProductResearchManagement";
+import CustomsConsultationManagement from "@/pages/admin/CustomsConsultationManagement";
 
 // China Warehouse Pages
 import ChinaWarehouseRegister from "@/pages/china-warehouse/ChinaWarehouseRegister";
