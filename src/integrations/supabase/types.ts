@@ -1068,6 +1068,66 @@ export type Database = {
           },
         ]
       }
+      remittance_orders: {
+        Row: {
+          admin_note: string | null
+          amount_cny: number
+          amount_mnt: number
+          created_at: string
+          fee: number
+          id: string
+          note: string | null
+          processed_at: string | null
+          processed_by: string | null
+          proof_url: string | null
+          rate: number
+          receiver_account: string
+          receiver_name: string
+          receiver_type: Database["public"]["Enums"]["remittance_receiver_type"]
+          status: Database["public"]["Enums"]["remittance_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount_cny: number
+          amount_mnt: number
+          created_at?: string
+          fee?: number
+          id?: string
+          note?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          proof_url?: string | null
+          rate: number
+          receiver_account: string
+          receiver_name: string
+          receiver_type: Database["public"]["Enums"]["remittance_receiver_type"]
+          status?: Database["public"]["Enums"]["remittance_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount_cny?: number
+          amount_mnt?: number
+          created_at?: string
+          fee?: number
+          id?: string
+          note?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          proof_url?: string | null
+          rate?: number
+          receiver_account?: string
+          receiver_name?: string
+          receiver_type?: Database["public"]["Enums"]["remittance_receiver_type"]
+          status?: Database["public"]["Enums"]["remittance_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       shipment_items: {
         Row: {
           added_at: string
@@ -1594,6 +1654,13 @@ export type Database = {
         | "completed"
       payment_method: "qpay" | "cash" | "bank_transfer" | "manual" | "storepay"
       payment_status: "pending" | "paid" | "failed" | "cancelled" | "refunded"
+      remittance_receiver_type: "alipay" | "wechat"
+      remittance_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "cancelled"
+        | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1732,6 +1799,14 @@ export const Constants = {
       ],
       payment_method: ["qpay", "cash", "bank_transfer", "manual", "storepay"],
       payment_status: ["pending", "paid", "failed", "cancelled", "refunded"],
+      remittance_receiver_type: ["alipay", "wechat"],
+      remittance_status: [
+        "pending",
+        "processing",
+        "completed",
+        "cancelled",
+        "rejected",
+      ],
     },
   },
 } as const
