@@ -149,6 +149,14 @@ export default function Home() {
       iconWrap: 'bg-emerald-100 text-emerald-700',
     },
     {
+      title: 'Гаалийн зөвлөгөө',
+      description: 'Гаалийн бүрдүүлэлт, татварын зөвлөгөө',
+      to: user ? '/customs-consultation' : '/auth',
+      icon: FileCheck2,
+      bg: 'from-indigo-50 to-violet-50',
+      iconWrap: 'bg-indigo-100 text-indigo-700',
+    },
+    {
       title: 'Тооцоолуур',
       description: 'Илгээмжийн үнийн дүн тооцоолох',
       to: '/calculator',
