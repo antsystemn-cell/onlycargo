@@ -73,6 +73,7 @@ const App = () => (
               <Route path="/referral" element={<ReferralPage />} />
               <Route path="/remittance" element={<Remittance />} />
               <Route path="/product-research" element={<ProductResearch />} />
+              <Route path="/customs-consultation" element={<CustomsConsultation />} />
             </Route>
 
             {/* Admin Routes with Sidebar */}
