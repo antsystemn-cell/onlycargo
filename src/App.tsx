@@ -94,6 +94,7 @@ const App = () => (
               <Route path="integrations" element={<ApiKeyManagement />} />
               <Route path="remittance" element={<RemittanceManagement />} />
               <Route path="product-research" element={<ProductResearchManagement />} />
+              <Route path="customs-consultation" element={<CustomsConsultationManagement />} />
             </Route>
 
             {/* China Warehouse Routes */}
