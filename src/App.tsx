@@ -101,6 +101,8 @@ const App = () => (
               <Route path="remittance" element={<RemittanceManagement />} />
               <Route path="product-research" element={<ProductResearchManagement />} />
               <Route path="customs-consultation" element={<CustomsConsultationManagement />} />
+              <Route path="china-domestic-transport" element={<ChinaDomesticTransportManagement />} />
+
             </Route>
 
             {/* China Warehouse Routes */}
