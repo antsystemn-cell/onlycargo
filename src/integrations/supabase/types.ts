@@ -547,6 +547,69 @@ export type Database = {
           },
         ]
       }
+      china_domestic_transport_orders: {
+        Row: {
+          admin_response: string | null
+          contact_phone: string | null
+          created_at: string
+          destination_address: string | null
+          destination_city: string
+          fee_amount: number
+          goods_description: string
+          goods_quantity: string | null
+          goods_volume: string | null
+          goods_weight: string | null
+          id: string
+          notes: string | null
+          origin_address: string | null
+          origin_city: string
+          quoted_price: number | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_response?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          destination_address?: string | null
+          destination_city: string
+          fee_amount?: number
+          goods_description: string
+          goods_quantity?: string | null
+          goods_volume?: string | null
+          goods_weight?: string | null
+          id?: string
+          notes?: string | null
+          origin_address?: string | null
+          origin_city: string
+          quoted_price?: number | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_response?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          destination_address?: string | null
+          destination_city?: string
+          fee_amount?: number
+          goods_description?: string
+          goods_quantity?: string | null
+          goods_volume?: string | null
+          goods_weight?: string | null
+          id?: string
+          notes?: string | null
+          origin_address?: string | null
+          origin_city?: string
+          quoted_price?: number | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       coupon_usage: {
         Row: {
           coupon_id: string
@@ -1733,6 +1796,21 @@ export type Database = {
           volume_price: number
           weight_price: number
         }[]
+      }
+      create_china_domestic_transport_order: {
+        Args: {
+          _contact_phone: string
+          _destination_address: string
+          _destination_city: string
+          _goods_description: string
+          _goods_quantity: string
+          _goods_volume: string
+          _goods_weight: string
+          _notes: string
+          _origin_address: string
+          _origin_city: string
+        }
+        Returns: string
       }
       create_customs_consultation_order: {
         Args: {
