@@ -23,7 +23,9 @@ import Auth from "@/pages/Auth";
 import Remittance from "@/pages/Remittance";
 import ProductResearch from "@/pages/ProductResearch";
 import CustomsConsultation from "@/pages/CustomsConsultation";
+import ChinaDomesticTransport from "@/pages/ChinaDomesticTransport";
 import NotFound from "@/pages/NotFound";
+
 
 // Admin Pages
 import AdminDashboard from "@/pages/admin/AdminDashboard";
