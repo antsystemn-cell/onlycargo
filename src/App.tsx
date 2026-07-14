@@ -23,7 +23,9 @@ import Auth from "@/pages/Auth";
 import Remittance from "@/pages/Remittance";
 import ProductResearch from "@/pages/ProductResearch";
 import CustomsConsultation from "@/pages/CustomsConsultation";
+import ChinaDomesticTransport from "@/pages/ChinaDomesticTransport";
 import NotFound from "@/pages/NotFound";
+
 
 // Admin Pages
 import AdminDashboard from "@/pages/admin/AdminDashboard";
@@ -43,6 +45,8 @@ import ApiKeyManagement from "@/pages/admin/ApiKeyManagement";
 import RemittanceManagement from "@/pages/admin/RemittanceManagement";
 import ProductResearchManagement from "@/pages/admin/ProductResearchManagement";
 import CustomsConsultationManagement from "@/pages/admin/CustomsConsultationManagement";
+import ChinaDomesticTransportManagement from "@/pages/admin/ChinaDomesticTransportManagement";
+
 
 // China Warehouse Pages
 import ChinaWarehouseRegister from "@/pages/china-warehouse/ChinaWarehouseRegister";
@@ -74,6 +78,8 @@ const App = () => (
               <Route path="/remittance" element={<Remittance />} />
               <Route path="/product-research" element={<ProductResearch />} />
               <Route path="/customs-consultation" element={<CustomsConsultation />} />
+              <Route path="/china-domestic-transport" element={<ChinaDomesticTransport />} />
+
             </Route>
 
             {/* Admin Routes with Sidebar */}
@@ -95,6 +101,8 @@ const App = () => (
               <Route path="remittance" element={<RemittanceManagement />} />
               <Route path="product-research" element={<ProductResearchManagement />} />
               <Route path="customs-consultation" element={<CustomsConsultationManagement />} />
+              <Route path="china-domestic-transport" element={<ChinaDomesticTransportManagement />} />
+
             </Route>
 
             {/* China Warehouse Routes */}

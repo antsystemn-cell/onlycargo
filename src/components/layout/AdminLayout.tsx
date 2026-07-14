@@ -20,6 +20,8 @@ import {
   ArrowRightLeft,
   PackageSearch,
   FileCheck2,
+  Warehouse,
+
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -43,6 +45,8 @@ const adminNavItems = [
   { href: '/admin/remittance', icon: ArrowRightLeft, label: 'Юанийн гуйвуулга' },
   { href: '/admin/product-research', icon: PackageSearch, label: 'Барааны судалгаа' },
   { href: '/admin/customs-consultation', icon: FileCheck2, label: 'Гаалийн зөвлөгөө' },
+  { href: '/admin/china-domestic-transport', icon: Warehouse, label: 'Хятад дотоод тээвэр' },
+
   { href: '/admin/integrations', icon: Key, label: 'API Интеграци' },
   { href: '/admin/settings', icon: Settings, label: 'Тохиргоо' },
 ];
