@@ -135,16 +135,17 @@ export default function RemittanceManagement() {
   const saveStatus = async () => {
     if (!selected) return;
     setSaving(true);
-    const patch: Record<string, unknown> = {
-      status: newStatus,
-      admin_note: adminNote.trim() || null,
-      proof_url: proofUrl.trim() || null,
-    };
-    if (newStatus === 'completed' || newStatus === 'rejected' || newStatus === 'cancelled') {
-      patch.processed_at = new Date().toISOString();
-      patch.processed_by = user?.id ?? null;
-    }
-    const { error } = await supabase.from('remittance_orders').update(patch).eq('id', selected.id);
+    const finalize = newStatus === 'completed' || newStatus === 'rejected' || newStatus === 'cancelled';
+    const { error } = await supabase
+      .from('remittance_orders')
+      .update({
+        status: newStatus,
+        admin_note: adminNote.trim() || null,
+        proof_url: proofUrl.trim() || null,
+        processed_at: finalize ? new Date().toISOString() : null,
+        processed_by: finalize ? (user?.id ?? null) : null,
+      })
+      .eq('id', selected.id);
     setSaving(false);
     if (error) {
       toast({ title: 'Алдаа', description: error.message, variant: 'destructive' });
