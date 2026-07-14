@@ -20,6 +20,7 @@ import Profile from "@/pages/Profile";
 import WalletPage from "@/pages/Wallet";
 import ReferralPage from "@/pages/Referral";
 import Auth from "@/pages/Auth";
+import Remittance from "@/pages/Remittance";
 import NotFound from "@/pages/NotFound";
 
 // Admin Pages
@@ -37,6 +38,7 @@ import DeliveryZoneManagement from "@/pages/admin/DeliveryZoneManagement";
 import DeliveryOrders from "@/pages/admin/DeliveryOrders";
 import ReferralSettings from "@/pages/admin/ReferralSettings";
 import ApiKeyManagement from "@/pages/admin/ApiKeyManagement";
+import RemittanceManagement from "@/pages/admin/RemittanceManagement";
 
 // China Warehouse Pages
 import ChinaWarehouseRegister from "@/pages/china-warehouse/ChinaWarehouseRegister";
@@ -65,6 +67,7 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/wallet" element={<WalletPage />} />
               <Route path="/referral" element={<ReferralPage />} />
+              <Route path="/remittance" element={<Remittance />} />
             </Route>
 
             {/* Admin Routes with Sidebar */}
@@ -83,6 +86,7 @@ const App = () => (
               <Route path="delivery-orders" element={<DeliveryOrders />} />
               <Route path="referral-settings" element={<ReferralSettings />} />
               <Route path="integrations" element={<ApiKeyManagement />} />
+              <Route path="remittance" element={<RemittanceManagement />} />
             </Route>
 
             {/* China Warehouse Routes */}
