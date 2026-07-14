@@ -90,6 +90,7 @@ const App = () => (
               <Route path="referral-settings" element={<ReferralSettings />} />
               <Route path="integrations" element={<ApiKeyManagement />} />
               <Route path="remittance" element={<RemittanceManagement />} />
+              <Route path="product-research" element={<ProductResearchManagement />} />
             </Route>
 
             {/* China Warehouse Routes */}
