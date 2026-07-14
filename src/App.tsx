@@ -21,6 +21,7 @@ import WalletPage from "@/pages/Wallet";
 import ReferralPage from "@/pages/Referral";
 import Auth from "@/pages/Auth";
 import Remittance from "@/pages/Remittance";
+import ProductResearch from "@/pages/ProductResearch";
 import NotFound from "@/pages/NotFound";
 
 // Admin Pages
