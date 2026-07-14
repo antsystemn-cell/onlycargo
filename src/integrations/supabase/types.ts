@@ -1677,6 +1677,10 @@ export type Database = {
           weight_price: number
         }[]
       }
+      create_product_research_order: {
+        Args: { p_fee: number; p_notes: string; p_product_url: string }
+        Returns: string
+      }
       generate_referral_code: { Args: { p_user_id: string }; Returns: string }
       get_user_phone: { Args: never; Returns: string }
       has_role: {
