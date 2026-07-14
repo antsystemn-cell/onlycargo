@@ -21,6 +21,8 @@ import {
   PackageSearch,
   FileCheck2,
   Warehouse,
+  Navigation,
+
 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -46,6 +48,8 @@ const adminNavItems = [
   { href: '/admin/product-research', icon: PackageSearch, label: 'Барааны судалгаа' },
   { href: '/admin/customs-consultation', icon: FileCheck2, label: 'Гаалийн зөвлөгөө' },
   { href: '/admin/china-domestic-transport', icon: Warehouse, label: 'Хятад дотоод тээвэр' },
+  { href: '/admin/mongolia-delivery', icon: Navigation, label: 'Монгол хүргэлт' },
+
 
   { href: '/admin/integrations', icon: Key, label: 'API Интеграци' },
   { href: '/admin/settings', icon: Settings, label: 'Тохиргоо' },

@@ -24,7 +24,9 @@ import Remittance from "@/pages/Remittance";
 import ProductResearch from "@/pages/ProductResearch";
 import CustomsConsultation from "@/pages/CustomsConsultation";
 import ChinaDomesticTransport from "@/pages/ChinaDomesticTransport";
+import MongoliaDelivery from "@/pages/MongoliaDelivery";
 import NotFound from "@/pages/NotFound";
+
 
 
 // Admin Pages
@@ -46,6 +48,8 @@ import RemittanceManagement from "@/pages/admin/RemittanceManagement";
 import ProductResearchManagement from "@/pages/admin/ProductResearchManagement";
 import CustomsConsultationManagement from "@/pages/admin/CustomsConsultationManagement";
 import ChinaDomesticTransportManagement from "@/pages/admin/ChinaDomesticTransportManagement";
+import MongoliaDeliveryManagement from "@/pages/admin/MongoliaDeliveryManagement";
+
 
 
 // China Warehouse Pages
@@ -79,6 +83,8 @@ const App = () => (
               <Route path="/product-research" element={<ProductResearch />} />
               <Route path="/customs-consultation" element={<CustomsConsultation />} />
               <Route path="/china-domestic-transport" element={<ChinaDomesticTransport />} />
+              <Route path="/mongolia-delivery" element={<MongoliaDelivery />} />
+
 
             </Route>
 
@@ -102,6 +108,8 @@ const App = () => (
               <Route path="product-research" element={<ProductResearchManagement />} />
               <Route path="customs-consultation" element={<CustomsConsultationManagement />} />
               <Route path="china-domestic-transport" element={<ChinaDomesticTransportManagement />} />
+              <Route path="mongolia-delivery" element={<MongoliaDeliveryManagement />} />
+
 
             </Route>
 
